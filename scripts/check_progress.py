@@ -1,7 +1,7 @@
 import re
 import sys
 
-README_PATH = "../README.md" if __name__ == "__main__" else "README.md"
+README_PATH = "README.md"
 
 with open(README_PATH, encoding="utf-8") as f:
     content = f.read()
