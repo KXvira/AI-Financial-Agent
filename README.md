@@ -44,6 +44,13 @@ See [`PROJECT_PLAN.md`](PROJECT_PLAN.md) for the full week-by-week breakdown and
 - Machine learning model development and optimization
 
 ### Technical Stack
+
+| | | | | |
+|:---:|:---:|:---:|:---:|:---:|
+| <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/python/python-original.svg" alt="Python" width="40" height="40"/> | <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/fastapi/fastapi-original.svg" alt="FastAPI" width="40" height="40"/> | <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/mongodb/mongodb-original.svg" alt="MongoDB" width="40" height="40"/> | <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/tensorflow/tensorflow-original.svg" alt="TensorFlow" width="40" height="40"/> | <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/scikit-learn/scikit-learn-original.svg" alt="scikit-learn" width="40" height="40"/> |
+| <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/pandas/pandas-original.svg" alt="pandas" width="40" height="40"/> | <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/numpy/numpy-original.svg" alt="NumPy" width="40" height="40"/> | <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/matplotlib/matplotlib-original.svg" alt="Matplotlib" width="40" height="40"/> | <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/plotly/plotly-original.svg" alt="Plotly" width="40" height="40"/> | <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/celery/celery-original.svg" alt="Celery" width="40" height="40"/> |
+| <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/redis/redis-original.svg" alt="Redis" width="40" height="40"/> | <img src="https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/zod.svg" alt="Zod" width="40" height="40"/> | | | |
+
 - **Backend:** Python + FastAPI
 - **AI/ML:** TensorFlow, scikit-learn, spaCy, pandas
 - **Database:** MongoDB with PyMongo
@@ -263,6 +270,11 @@ See [`PROJECT_PLAN.md`](PROJECT_PLAN.md) for the full week-by-week breakdown and
 - Payment analytics and optimization
 
 ### Technical Stack
+
+| | | | | |
+|:---:|:---:|:---:|:---:|:---:|
+| <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/python/python-original.svg" alt="Python" width="40" height="40"/> | <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/fastapi/fastapi-original.svg" alt="FastAPI" width="40" height="40"/> | <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/mongodb/mongodb-original.svg" alt="MongoDB" width="40" height="40"/> | <img src="https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/jwt.svg" alt="JWT" width="40" height="40"/> | <img src="https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/ngrok.svg" alt="Ngrok" width="40" height="40"/> |
+
 - **Backend:** Python + FastAPI
 - **Payment APIs:** Safaricom Daraja API, Airtel Money API
 - **Database:** MongoDB for transaction storage
@@ -394,6 +406,13 @@ See [`PROJECT_PLAN.md`](PROJECT_PLAN.md) for the full week-by-week breakdown and
 - User interface and experience design
 
 ### Technical Stack
+
+| | | | | |
+|:---:|:---:|:---:|:---:|:---:|
+| <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/react/react-original.svg" alt="React" width="40" height="40"/> | <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/nextjs/nextjs-original.svg" alt="Next.js" width="40" height="40"/> | <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/tailwindcss/tailwindcss-plain.svg" alt="Tailwind CSS" width="40" height="40"/> | <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/python/python-original.svg" alt="Python" width="40" height="40"/> | <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/fastapi/fastapi-original.svg" alt="FastAPI" width="40" height="40"/> |
+| <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/mongodb/mongodb-original.svg" alt="MongoDB" width="40" height="40"/> | <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/redux/redux-original.svg" alt="Redux" width="40" height="40"/> | <img src="https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/sendgrid.svg" alt="SendGrid" width="40" height="40"/> | <img src="https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/amazonses.svg" alt="Amazon SES" width="40" height="40"/> | <img src="https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/reportlab.svg" alt="ReportLab" width="40" height="40"/> |
+| <img src="https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/weasyprint.svg" alt="WeasyPrint" width="40" height="40"/> | <img src="https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/zod.svg" alt="Zod" width="40" height="40"/> | | | |
+
 - **Frontend:** React.js + Next.js 14 with App Router
 - **Styling:** Tailwind CSS with custom design system
 - **Backend:** FastAPI for invoice APIs
@@ -529,6 +548,18 @@ See [`PROJECT_PLAN.md`](PROJECT_PLAN.md) for the full week-by-week breakdown and
 - Performance optimization and scaling
 
 ### Technical Stack
+<p align="left">
+  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/mongodb/mongodb-original.svg" alt="MongoDB" width="40" height="40"/>
+  <img src="https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/docker.svg" alt="Docker" width="40" height="40"/>
+  <img src="https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/kubernetes.svg" alt="Kubernetes" width="40" height="40"/>
+  <img src="https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/githubactions.svg" alt="GitHub Actions" width="40" height="40"/>
+  <img src="https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/prometheus.svg" alt="Prometheus" width="40" height="40"/>
+  <img src="https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/grafana.svg" alt="Grafana" width="40" height="40"/>
+  <img src="https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/africastalking.svg" alt="Africa's Talking" width="40" height="40"/>
+  <img src="https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/twilio.svg" alt="Twilio" width="40" height="40"/>
+  <img src="https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/sendgrid.svg" alt="SendGrid" width="40" height="40"/>
+</p>
+
 - **Database:** MongoDB Atlas with replica sets
 - **Infrastructure:** Docker + Kubernetes or cloud platforms
 - **CI/CD:** GitHub Actions, automated testing
