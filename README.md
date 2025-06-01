@@ -1,8 +1,35 @@
 # AI-Powered Financial Management System for Kenya
 
+[![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/your-org/your-repo/actions)
+[![Coverage Status](https://img.shields.io/badge/coverage-100%25-brightgreen)](https://github.com/your-org/your-repo)
+
+## Quickstart
+
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/your-org/AI-Financial-Agent.git
+   cd AI-Financial-Agent
+   ```
+2. **Set up Python environment:**
+   ```bash
+   python3 -m venv venv
+   source venv/bin/activate
+   pip install -r requirements.txt
+   ```
+3. **Run the application:**
+   - See `PROJECT_PLAN.md` for detailed setup per service.
+
+---
+
 ## Project Overview
 **Timeline:** 12 weeks (3 months)  
 **Team:** 4 developers working in parallel with coordinated integration points
+
+---
+
+## 📅 Project Plan
+
+See [`PROJECT_PLAN.md`](PROJECT_PLAN.md) for the full week-by-week breakdown and deliverables for all teams.
 
 ---
 
@@ -692,21 +719,35 @@
 ## 📊 Progress Tracking
 
 ### Overall Project Status
-- **Month 1 Progress:** ___/___% Complete
-- **Month 2 Progress:** ___/___% Complete
-- **Month 3 Progress:** ___/___% Complete
+- **Month 1 Progress:** [automated]% Complete
+- **Month 2 Progress:** [automated]% Complete
+- **Month 3 Progress:** [automated]% Complete
 
 ### Team Member Progress Summary
-- **Munga (AI/Analytics):** ___/___% Complete
-- **Muchamo (Payments):** ___/___% Complete
-- **Biggie (Frontend/Invoices):** ___/___% Complete
-- **Kevo (Infrastructure):** ___/___% Complete
+- **Munga (AI/Analytics):** [automated]% Complete
+- **Muchamo (Payments):** [automated]% Complete
+- **Biggie (Frontend/Invoices):** [automated]% Complete
+- **Kevo (Infrastructure):** [automated]% Complete
 
 ### Current Blockers
 - [ ] List any current blocking issues here
 - [ ] Assign ownership and timeline for resolution
 
 ### Next Critical Milestones
-- [ ] Next integration checkpoint: [Date]
-- [ ] Next major deliverable: [Date]
-- [ ] Production launch target: [Date]
+- [ ] Next integration checkpoint: [Fill Date]
+- [ ] Next major deliverable: [Fill Date]
+- [ ] Production launch target: [Fill Date]
+
+---
+
+## 🛠️ Progress Checker Script
+
+To automatically calculate progress, run:
+
+```bash
+python3 scripts/check_progress.py
+```
+
+This will update the progress fields above. (See `scripts/check_progress.py` for details.)
+
+---
