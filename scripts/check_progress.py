@@ -5,6 +5,7 @@ import os
 # Get the absolute path to the project root directory
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 README_PATH = os.path.join(PROJECT_ROOT, "README.md")
+print(f"Reading README from: {README_PATH}")
 
 with open(README_PATH, encoding="utf-8") as f:
     content = f.read()
@@ -12,6 +13,9 @@ with open(README_PATH, encoding="utf-8") as f:
 # Count all checkboxes
 all_boxes = re.findall(r"- \[.\]", content)
 done_boxes = re.findall(r"- \[x\]", content, re.IGNORECASE)
+
+print(f"Found {len(all_boxes)} total checkboxes")
+print(f"Found {len(done_boxes)} completed checkboxes")
 
 if not all_boxes:
     print("No checkboxes found.")
