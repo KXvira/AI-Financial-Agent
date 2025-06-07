@@ -26,8 +26,7 @@ class GeminiService:
     def __init__(self):
         self.config = GeminiConfig()
         genai.configure(api_key=self.config.api_key)
-        
-        # Check which model to use based onhgy67 config
+        # Check which model to use based on config
         # Create generation config as a dictionary which is the expected format
         generation_config = {
             "temperature": self.config.temperature,
@@ -41,7 +40,6 @@ class GeminiService:
             model_name=self.config.model,
             generation_config=generation_config
         )
-    
     async def reconcile_payment(self, payment_data: Dict[str, Any], invoices: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
         Reconcile a payment against a list of possible invoices
