@@ -183,7 +183,7 @@ class ReconciliationService:
             invoice_amount = float(invoice.get("total", 0))
             if abs(payment_amount - invoice_amount) < 1:  # Exact match within 1 KES
                 score += 60
-            elif abs(payment_amount - invoice_amount) / invoice_amount < 0.05:  # Within 5%
+            elif invoice_amount != 0 and abs(payment_amount - invoice_amount) / invoice_amount < 0.05:  # Within 5%
                 score += 40
             elif payment_amount > 0 and payment_amount < invoice_amount:  # Partial payment
                 score += 30
