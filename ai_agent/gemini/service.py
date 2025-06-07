@@ -27,15 +27,19 @@ class GeminiService:
         self.config = GeminiConfig()
         genai.configure(api_key=self.config.api_key)
         
-        # Check which model to use based on config
+        # Check which model to use based onhgy67 config
+        # Create generation config as a dictionary which is the expected format
+        generation_config = {
+            "temperature": self.config.temperature,
+            "max_output_tokens": self.config.max_output_tokens,
+            "top_p": 0.95,
+            "top_k": 40
+        }
+        
+        # Use the genai package's public method to get a GenerativeModel
         self.model = genai.GenerativeModel(
             model_name=self.config.model,
-            generation_config={
-                "temperature": self.config.temperature,
-                "max_output_tokens": self.config.max_output_tokens,
-                "top_p": 0.95,
-                "top_k": 40
-            }
+            generation_config=generation_config
         )
     
     async def reconcile_payment(self, payment_data: Dict[str, Any], invoices: List[Dict[str, Any]]) -> Dict[str, Any]:
