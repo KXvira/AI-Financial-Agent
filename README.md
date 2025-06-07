@@ -3,21 +3,152 @@
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/your-org/your-repo/actions)
 [![Coverage Status](https://img.shields.io/badge/coverage-100%25-brightgreen)](https://github.com/your-org/your-repo)
 
-## Quickstart
+## Getting Started
+
+### Prerequisites
+
+- Python 3.9+ installed
+- MongoDB instance (local or Atlas)
+- M-Pesa Daraja API credentials (for payment functionality)
+- Gemini AI API key (for AI-powered reconciliation)
+
+### Installation
 
 1. **Clone the repository:**
    ```bash
    git clone https://github.com/your-org/AI-Financial-Agent.git
    cd AI-Financial-Agent
    ```
-2. **Set up Python environment:**
+
+2. **Set up the environment automatically:**
    ```bash
+   # Make setup script executable
+   chmod +x setup.sh
+   
+   # Run setup script to create virtual environment and install dependencies
+   ./setup.sh
+   ```
+
+   Alternatively, you can set up the environment manually:
+   ```bash
+   # Create and activate Python virtual environment
    python3 -m venv venv
    source venv/bin/activate
+   
+   # Install dependencies
    pip install -r requirements.txt
    ```
-3. **Run the application:**
-   - See `PROJECT_PLAN.md` for detailed setup per service.
+
+3. **Configure environment variables:**
+   - Copy the .env template and edit with your credentials
+   ```bash
+   cp .env.example .env
+   # Edit .env with your editor
+   nano .env
+   ```
+   - Required credentials:
+     - MongoDB connection string
+     - M-Pesa API keys
+     - Gemini AI API key
+
+4. **Initialize the database:**
+   ```bash
+   # Run database initialization script
+   python scripts/initialize_database.py
+   ```
+
+5. **Run the application:**
+   ```bash
+   # Start the FastAPI server
+   python backend/app.py
+   ```
+   
+   - Access the API documentation at http://localhost:8000/docs
+   - Test the health check endpoint at http://localhost:8000/
+
+### Development Workflow
+
+1. **Branch Management:**
+   - `main` - Production-ready code
+   - `develop` - Integration branch for features
+   - `feature/*` - Individual feature branches
+
+2. **Development Process:**
+   - Create a feature branch from develop
+   - Implement and test your feature
+   - Submit a pull request to the develop branch
+   - After review and CI checks, merge to develop
+
+3. **Code Style:**
+   - Follow PEP 8 guidelines for Python code
+   - Use type hints to improve code clarity
+   - Document all functions and classes with docstrings
+
+### Deployment
+
+#### Local Development
+```bash
+# Run with auto-reload for development
+uvicorn backend.app:app --reload --host 0.0.0.0 --port 8000
+```
+
+#### Docker Deployment
+```bash
+# Build the Docker image
+docker build -t ai-financial-agent .
+
+# Run the container
+docker run -p 8000:8000 --env-file .env ai-financial-agent
+```
+
+#### Production Deployment
+
+For production deployment, we recommend:
+1. Using a production-grade ASGI server like Uvicorn behind Nginx
+2. Setting up proper database credentials and connection pooling
+3. Configuring SSL/TLS for secure API access
+4. Setting environment variables for production settings
+
+Example production setup command:
+```bash
+# Run with Gunicorn for production
+gunicorn -k uvicorn.workers.UvicornWorker -w 4 -b 0.0.0.0:8000 backend.app:app
+```
+
+### Project Structure
+
+```
+AI-Financial-Agent/
+├── ai_agent/               # AI integration services
+│   ├── gemini/            # Gemini AI integration for reconciliation
+│   ├── models/            # ML models for predictions
+│   ├── prompts/           # Templates for AI prompts
+│   └── utils/             # Utility functions for AI
+├── backend/               # Backend FastAPI application
+│   ├── app.py             # Main application entry point
+│   ├── config/            # Application configuration
+│   ├── database/          # Database connections and models
+│   ├── models/            # Data models
+│   ├── mpesa/             # M-Pesa integration
+│   ├── reconciliation/    # Payment reconciliation services
+│   ├── reporting/         # Reporting and analytics
+│   ├── schemas/           # Database schemas
+│   └── utils/             # Utility functions
+└── scripts/               # Utility scripts
+    ├── check_progress.py  # Project progress tracker
+    └── initialize_database.py # Database setup script
+```
+
+### Testing
+
+Run the test suite:
+```bash
+# Run all tests
+python -m pytest
+
+# Run specific test file
+python -m pytest tests/test_mpesa.py
+```
 
 ---
 
@@ -684,101 +815,60 @@ See [`PROJECT_PLAN.md`](PROJECT_PLAN.md) for the full week-by-week breakdown and
 
 ---
 
-## 🤝 Team Coordination & Integration
+## Key Features
 
-### Weekly Coordination Schedule
+- **M-Pesa Integration:** Seamless payment processing with Safaricom's M-Pesa
+  - STK Push for direct customer payments
+  - Automated webhook handling and transaction reconciliation
+  - Payment status tracking and notifications
+  
+- **AI-Powered Reconciliation:**
+  - Automatic matching of payments to invoices using Gemini AI
+  - Intelligent handling of partial payments and multiple invoices
+  - Confidence scoring to identify payments needing review
+  
+- **Financial Analytics:**
+  - Transaction trend analysis and visualization
+  - Customer payment behavior insights
+  - Anomaly detection for unusual financial patterns
+  
+- **Business Intelligence:**
+  - KPI tracking (DSO, cash conversion cycle)
+  - Cash flow forecasting
+  - Financial health scoring
 
-#### Weekly Team Meetings (Every Monday 9:00 AM - 1 hour)
-- [ ] Progress updates from each team member
-- [ ] Integration challenges and solutions
-- [ ] Dependency coordination and planning
-- [ ] Risk assessment and mitigation
-- [ ] Sprint planning for the upcoming week
+### M-Pesa Integration Details
 
-#### Bi-weekly Integration Testing (Every Other Wednesday)
-- [ ] Complete system integration testing
-- [ ] API contract validation
-- [ ] End-to-end user flow testing
-- [ ] Performance testing and optimization
-- [ ] Issue identification and resolution planning
+The system integrates with M-Pesa using the Safaricom Daraja API:
 
-#### Monthly Reviews & Planning
-- [ ] Week 4: Month 1 review and Month 2 planning
-- [ ] Week 8: Month 2 review and Month 3 planning
-- [ ] Week 12: Final review and post-launch planning
+1. **Authentication:** OAuth-based token generation for secure API access
+2. **Payment Initiation:** STK Push to customer's phone for payment authorization
+3. **Callback Processing:** Automated handling of payment confirmations via webhooks
+4. **Reconciliation Flow:** Payments are automatically matched to invoices using AI
 
-### Critical Integration Milestones
+### Gemini AI Integration
 
-#### Week 4: First Integration Checkpoint
-- [ ] All core APIs functional and documented
-- [ ] Basic end-to-end flow working (invoice → payment → reconciliation)
-- [ ] Development environment fully operational
-- [ ] **Success Criteria:** Customer can create invoice, pay via M-Pesa, and see payment recorded
+Google's Gemini AI powers the intelligent features of the system:
 
-#### Week 8: Advanced Features Integration
-- [ ] AI reconciliation system fully integrated
-- [ ] Real-time features and notifications working
-- [ ] Advanced payment processing operational
-- [ ] **Success Criteria:** Complete system with all advanced features functional
+1. **Payment Reconciliation:** Matching transactions to invoices based on multiple factors
+2. **Anomaly Detection:** Identifying unusual payment patterns or potential fraud
+3. **Expense Categorization:** Automatically categorizing expenses into appropriate accounts
+4. **Financial Insights:** Generating actionable business insights from transaction data
 
-#### Week 12: Production Launch
-- [ ] All systems deployed and operational
-- [ ] Monitoring and alerting fully functional
-- [ ] User documentation and training complete
-- [ ] **Success Criteria:** Live system ready for real users
+### Troubleshooting
 
-### Communication Protocols
+- **Database Connection Issues:**
+  ```bash
+  # Check MongoDB connection
+  mongo --eval "db.runCommand({ping: 1})"
+  ```
+  
+- **M-Pesa API Connection:**
+  ```bash
+  # Test M-Pesa API connectivity
+  python -c "from backend.mpesa.service import MpesaService; import asyncio; asyncio.run(MpesaService().get_access_token())"
+  ```
 
-#### Daily Updates (Slack/Discord)
-- [ ] Brief progress updates by 6 PM daily
-- [ ] Immediate escalation of blocking issues
-- [ ] Coordination of dependencies and handoffs
-
-#### Emergency Communication
-- [ ] Direct phone/WhatsApp for critical issues
-- [ ] Maximum 2-hour response time for blockers
-- [ ] Team lead rotation for after-hours support
-
-#### Documentation Standards
-- [ ] All APIs documented with OpenAPI specs
-- [ ] Code comments and README files for all repositories
-- [ ] Architecture decisions recorded and shared
-- [ ] Weekly technical blog posts for knowledge sharing
-
----
-
-## 📊 Progress Tracking
-
-### Overall Project Status
-- **Month 1 Progress:** [automated]% Complete
-- **Month 2 Progress:** [automated]% Complete
-- **Month 3 Progress:** [automated]% Complete
-
-### Team Member Progress Summary
-- **Munga (AI/Analytics):** [automated]% Complete
-- **Muchamo (Payments):** [automated]% Complete
-- **Biggie (Frontend/Invoices):** [automated]% Complete
-- **Kevo (Infrastructure):** [automated]% Complete
-
-### Current Blockers
-- [ ] List any current blocking issues here
-- [ ] Assign ownership and timeline for resolution
-
-### Next Critical Milestones
-- [ ] Next integration checkpoint: [Fill Date]
-- [ ] Next major deliverable: [Fill Date]
-- [ ] Production launch target: [Fill Date]
-
----
-
-## 🛠️ Progress Checker Script
-
-To automatically calculate progress, run:
-
-```bash
-python3 scripts/check_progress.py
-```
-
-This will update the progress fields above. (See `scripts/check_progress.py` for details.)
-
----
+- **Logs:**
+  - Application logs are stored in the `logs` directory
+  - Use `tail -f logs/app.log` to view live logs
