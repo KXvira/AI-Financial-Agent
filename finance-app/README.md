@@ -39,17 +39,17 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 ## Structure of the folder (UI Focus)
 
 app
-├───customers       #Mpesa Integrartion and downloads is done in [id] folder
+├───customers       #Mpesa Integration and downloads is done in [id] folder
 │   ├───invoice     # List of customer invoices 
 │   │   └───[id]    # Unique customer invoice's details 
 │   └───status      # Payment status
 |   
 ├───invoices  
 │   ├───new         #Generate a new invoice
-│   └───[id]        # Unique invoice detals by id
+│   └───[id]        # Unique invoice details by id
 |
 └───payments
-    ├───list          # List of payemnts
+    ├───list          # List of payments
     ├───new           #Generate a new payment form
     └───[reference]   #Obtain payment details by [reference]
 

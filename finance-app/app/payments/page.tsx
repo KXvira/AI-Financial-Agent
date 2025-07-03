@@ -120,7 +120,7 @@ export default function PaymentsPage() {
             {filteredPayments.map((payment, idx) => {
               const currentStatus = matchStatus[payment.invoice];
               return (
-                <tr key={idx} className="hover:bg-gray-50 transition-all">
+                <tr key={payment.invoice} className="hover:bg-gray-50 transition-all">
                   <td className="p-3 font-medium text-blue-700">{payment.invoice}</td>
                   <td className="p-3 text-blue-700">{payment.reference}</td>
                   <td className="p-3">{payment.amount}</td>
