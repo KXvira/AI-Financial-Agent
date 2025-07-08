@@ -714,3 +714,4 @@ def get_ai_insights_service() -> FinancialRAGService:
         _service_instance = FinancialRAGService(config)
     
     return _service_instance
+
