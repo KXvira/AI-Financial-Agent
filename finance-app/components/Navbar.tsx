@@ -13,6 +13,7 @@ export default function Navbar() {
         <Link href="/invoices">Invoices</Link>
         <Link href="/payments">Payments</Link>
         <Link href="/customers">Customers</Link>
+        <Link href="/ai-insights">AI Insights</Link>
       </nav>
     </header>
   );
