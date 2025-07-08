@@ -826,6 +826,12 @@ See [`PROJECT_PLAN.md`](PROJECT_PLAN.md) for the full week-by-week breakdown and
   - Automatic matching of payments to invoices using Gemini AI
   - Intelligent handling of partial payments and multiple invoices
   - Confidence scoring to identify payments needing review
+
+- **AI Financial Insights (NEW):**
+  - Conversational AI for financial queries using RAG architecture
+  - Natural language questions about revenue, expenses, and business performance
+  - Real-time data retrieval from MongoDB with AI-powered analysis
+  - Actionable business recommendations and insights
   
 - **Financial Analytics:**
   - Transaction trend analysis and visualization
@@ -854,6 +860,32 @@ Google's Gemini AI powers the intelligent features of the system:
 2. **Anomaly Detection:** Identifying unusual payment patterns or potential fraud
 3. **Expense Categorization:** Automatically categorizing expenses into appropriate accounts
 4. **Financial Insights:** Generating actionable business insights from transaction data
+5. **Conversational AI:** Natural language interface for financial queries and analysis
+
+### AI Financial Insights API
+
+The new AI insights service provides conversational financial analysis:
+
+**Ask a financial question:**
+```bash
+curl -X POST "http://localhost:8000/ai/ask" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "What was my revenue trend for the last 3 months?"}'
+```
+
+**Example queries:**
+- "What was my revenue for the last 3 months?"
+- "Show me my top expense categories"
+- "How many invoices are still pending payment?"
+- "What's my average transaction amount?"
+- "Which payment gateway performs best?"
+
+**Service health check:**
+```bash
+curl http://localhost:8000/ai/health
+```
+
+For detailed documentation, see [`docs/AI_INSIGHTS_SERVICE.md`](docs/AI_INSIGHTS_SERVICE.md).
 
 ### Troubleshooting
 
