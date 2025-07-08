@@ -23,6 +23,7 @@ except ImportError:
 try:
     from mpesa.router import router as mpesa_router
     from reconciliation.router import router as reconciliation_router
+    from ai_insights.router import router as ai_insights_router
     from database.mongodb import Database
     
     # Flag to track if all imports were successful
@@ -59,6 +60,7 @@ app.add_middleware(
 if all_imports_successful:
     app.include_router(mpesa_router)
     app.include_router(reconciliation_router)
+    app.include_router(ai_insights_router)  # Add AI insights router
     
     # Initialize database connection
     @app.on_event("startup")
