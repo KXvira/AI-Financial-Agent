@@ -3,68 +3,356 @@
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/your-org/your-repo/actions)
 [![Coverage Status](https://img.shields.io/badge/coverage-100%25-brightgreen)](https://github.com/your-org/your-repo)
 
-## Getting Started
+A comprehensive fullstack financial management system built with Python FastAPI backend and Next.js frontend, featuring AI-powered insights, M-Pesa integration, and intelligent financial reconciliation.
 
-### Prerequisites
+## 🚀 Features
 
-- Python 3.9+ installed
-- MongoDB instance (local or Atlas)
-- M-Pesa Daraja API credentials (for payment functionality)
-- Gemini AI API key (for AI-powered reconciliation)
+- **AI-Powered Insights**: Intelligent financial analysis using Gemini AI
+- **M-Pesa Integration**: Seamless mobile money transactions
+- **Automated Reconciliation**: Smart invoice and payment matching
+- **Real-time Dashboard**: Interactive financial reporting
+- **Multi-user Support**: Role-based access control
+- **RESTful API**: Comprehensive backend API with OpenAPI documentation
 
-### Installation
+## 🛠️ Tech Stack
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/your-org/AI-Financial-Agent.git
-   cd AI-Financial-Agent
-   ```
+### Backend
+- **Python 3.9+** with FastAPI
+- **MongoDB** for data storage
+- **Gemini AI** for intelligent insights
+- **M-Pesa Daraja API** for mobile payments
+- **Pydantic** for data validation
+- **Motor** for async MongoDB operations
 
-2. **Set up the environment automatically:**
-   ```bash
-   # Make setup script executable
-   chmod +x setup.sh
-   
-   # Run setup script to create virtual environment and install dependencies
-   ./setup.sh
-   ```
+### Frontend
+- **Next.js 15.3.5** with App Router
+- **React 18** with TypeScript
+- **Tailwind CSS** for styling
+- **Lucide React** for icons
+- **Modern UI components**
 
-   Alternatively, you can set up the environment manually:
-   ```bash
-   # Create and activate Python virtual environment
-   python3 -m venv venv
-   source venv/bin/activate
-   
-   # Install dependencies
-   pip install -r requirements.txt
-   ```
+## 📋 Prerequisites
 
-3. **Configure environment variables:**
-   - Copy the .env template and edit with your credentials
-   ```bash
-   cp .env.example .env
-   # Edit .env with your editor
-   nano .env
-   ```
-   - Required credentials:
-     - MongoDB connection string
-     - M-Pesa API keys
-     - Gemini AI API key
+Before running the project, ensure you have:
 
-4. **Initialize the database:**
-   ```bash
-   # Run database initialization script
-   python scripts/initialize_database.py
-   ```
+- **Node.js 18.x+** (required for Next.js 15)
+- **Python 3.9+**
+- **MongoDB** (local installation or MongoDB Atlas)
+- **Git** for version control
 
-5. **Run the application:**
-   ```bash
-   # Start the FastAPI server
-   python backend/app.py
-   ```
-   
-   - Access the API documentation at http://localhost:8000/docs
-   - Test the health check endpoint at http://localhost:8000/
+### API Keys Required
+- **Gemini AI API Key** (for AI insights)
+- **M-Pesa Daraja API Credentials** (for payment processing)
+- **MongoDB Connection String** (if using MongoDB Atlas)
+
+## 🏃‍♂️ Quick Start
+
+### 1. Clone the Repository
+```bash
+git clone https://github.com/your-org/AI-Financial-Agent.git
+cd AI-Financial-Agent
+```
+
+### 2. Backend Setup
+
+#### Option A: Using the Setup Script (Recommended)
+```bash
+# Make setup script executable
+chmod +x setup.sh
+
+# Run automated setup
+./setup.sh
+```
+
+#### Option B: Manual Setup
+```bash
+# Create Python virtual environment
+python3 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install backend dependencies
+pip install -r backend/requirements.txt
+```
+
+### 3. Environment Configuration
+
+Create your environment file:
+```bash
+cp .env.example .env
+```
+
+Edit `.env` with your credentials:
+```env
+# Database Configuration
+MONGODB_URL=mongodb://localhost:27017/ai_financial_agent
+
+# AI Configuration
+GEMINI_API_KEY=your_gemini_api_key_here
+
+# M-Pesa Configuration (Optional for testing)
+MPESA_CONSUMER_KEY=your_mpesa_consumer_key
+MPESA_CONSUMER_SECRET=your_mpesa_consumer_secret
+MPESA_PASSKEY=your_mpesa_passkey
+MPESA_SHORTCODE=your_mpesa_shortcode
+
+# Application Configuration
+DEBUG=true
+LOG_LEVEL=info
+```
+
+### 4. Database Setup
+
+Initialize the database:
+```bash
+# Ensure MongoDB is running locally or you have Atlas connection
+python scripts/initialize_database.py
+```
+
+### 5. Frontend Setup
+
+```bash
+# Navigate to frontend directory
+cd finance-app
+
+# Install dependencies
+npm install
+
+# Return to project root
+cd ..
+```
+
+## 🚀 Running the Application
+
+### Development Mode (Full Stack)
+
+#### Option 1: Run Both Servers Simultaneously
+```bash
+# Start the fullstack application (backend + frontend)
+python fullstack_main.py
+```
+
+This will start:
+- Backend server on `http://localhost:8002`
+- Frontend server on `http://localhost:3000`
+
+#### Option 2: Run Servers Separately
+
+**Terminal 1 - Backend:**
+```bash
+# Activate virtual environment
+source venv/bin/activate
+
+# Start backend server
+cd backend
+python app.py
+```
+
+**Terminal 2 - Frontend:**
+```bash
+# Start frontend development server
+cd finance-app
+npm run dev
+```
+
+### Production Mode
+
+#### Backend Production Server
+```bash
+# Using uvicorn for production
+uvicorn backend.app:app --host 0.0.0.0 --port 8002
+```
+
+#### Frontend Production Build
+```bash
+cd finance-app
+npm run build
+npm start
+```
+
+## 📚 API Documentation
+
+Once the backend is running, access the interactive API documentation:
+
+- **Swagger UI**: `http://localhost:8002/docs`
+- **ReDoc**: `http://localhost:8002/redoc`
+- **OpenAPI Schema**: `http://localhost:8002/openapi.json`
+
+### Key API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/health` | Health check endpoint |
+| POST | `/api/ai-insights/analyze` | AI-powered financial analysis |
+| GET | `/api/mpesa/transactions` | M-Pesa transaction history |
+| POST | `/api/reconciliation/auto` | Automated reconciliation |
+| GET | `/api/invoices` | Invoice management |
+| POST | `/api/payments` | Payment processing |
+
+## 🎯 Application Structure
+
+```
+AI-Financial-Agent/
+├── backend/                    # FastAPI backend
+│   ├── app.py                 # Main application entry
+│   ├── ai_insights/           # AI analysis modules
+│   ├── mpesa/                 # M-Pesa integration
+│   ├── reconciliation/        # Reconciliation logic
+│   ├── models/                # Data models
+│   └── requirements.txt       # Python dependencies
+├── finance-app/               # Next.js frontend
+│   ├── app/                   # App Router pages
+│   ├── components/            # React components
+│   ├── utils/                 # Utility functions
+│   ├── types/                 # TypeScript definitions
+│   └── package.json           # Node.js dependencies
+├── ai_agent/                  # AI agent modules
+├── scripts/                   # Utility scripts
+├── docs/                      # Documentation
+├── .env.example               # Environment template
+├── fullstack_main.py          # Full stack launcher
+└── README.md                  # This file
+```
+
+## 🔧 Development Workflow
+
+### Branch Strategy
+- `main` - Production-ready code
+- `feature/*` - Feature development branches
+- `develop` - Integration branch
+
+### Code Quality
+- Follow PEP 8 for Python code
+- Use ESLint/Prettier for TypeScript/JavaScript
+- Type hints required for Python functions
+- Component documentation for React components
+
+### Testing
+```bash
+# Backend tests
+python -m pytest backend/tests/
+
+# Frontend tests
+cd finance-app
+npm test
+```
+
+## 🐳 Docker Deployment
+
+### Build and Run with Docker
+```bash
+# Build the Docker image
+docker build -t ai-financial-agent .
+
+# Run the container
+docker run -p 8002:8002 ai-financial-agent
+```
+
+### Docker Compose (Coming Soon)
+```bash
+# Start all services
+docker-compose up -d
+```
+
+## 🌟 Key Features Usage
+
+### AI Insights
+```typescript
+// Frontend API call example
+const response = await fetch('http://localhost:8002/api/ai-insights/analyze', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    data: { transactions: [...], period: '30d' }
+  })
+});
+```
+
+### M-Pesa Integration
+```python
+# Backend M-Pesa example
+from backend.mpesa.service import MPesaService
+
+mpesa = MPesaService()
+result = await mpesa.initiate_payment(
+    phone_number="254700000000",
+    amount=1000,
+    callback_url="https://yourapp.com/callback"
+)
+```
+
+## 🔄 Recent Updates
+
+### Version 2.0.0 - Latest
+- ✅ Updated to Next.js 15.3.5
+- ✅ Fixed Node.js compatibility (now requires 18.x+)
+- ✅ Resolved Tailwind CSS configuration issues
+- ✅ Improved PostCSS setup
+- ✅ Enhanced fullstack integration
+- ✅ Added comprehensive API documentation
+
+### Version 1.0.0
+- ✅ Initial release with basic functionality
+- ✅ M-Pesa integration
+- ✅ AI-powered insights
+- ✅ Basic reconciliation features
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+#### Node.js Version Issues
+```bash
+# Check Node.js version (must be 18.x+)
+node --version
+
+# Update Node.js if needed
+curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+sudo apt-get install -y nodejs
+```
+
+#### Frontend Build Errors
+```bash
+# Clear npm cache and reinstall
+cd finance-app
+rm -rf node_modules package-lock.json
+npm install
+```
+
+#### Backend Database Connection
+```bash
+# Check MongoDB connection
+python -c "from pymongo import MongoClient; print(MongoClient().admin.command('ping'))"
+```
+
+#### Port Conflicts
+```bash
+# Check if ports are in use
+lsof -i :8002  # Backend port
+lsof -i :3000  # Frontend port
+
+# Kill processes if needed
+pkill -f "python.*app.py"
+pkill -f "next dev"
+```
+
+## 📧 Support
+
+For issues and questions:
+- Create an issue on GitHub
+- Check the documentation in `/docs`
+- Review the API documentation at `/docs` endpoint
+
+## 📝 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🤝 Contributing
+
+Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests.
+
+---
+
+**Happy Coding! 🚀**
 
 ### Development Workflow
 
