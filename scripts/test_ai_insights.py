@@ -109,12 +109,8 @@ def test_ai_query(question: str, expected_keywords: list = None):
     
     try:
         query_data = {
-            "question": question,
-            "context": "test query",
-            "date_range": {
-                "start": (datetime.now() - timedelta(days=30)).isoformat(),
-                "end": datetime.now().isoformat()
-            }
+            "query": question,
+            "user_id": "test_user"
         }
         
         response = requests.post(
@@ -126,10 +122,7 @@ def test_ai_query(question: str, expected_keywords: list = None):
         if response.status_code == 200:
             data = response.json()
             print("✅ AI query successful:")
-            print(f"   Question: {data.get('question', 'N/A')}")
             print(f"   Answer preview: {data.get('answer', 'N/A')[:100]}...")
-            print(f"   Confidence: {data.get('confidence', 0):.2f}")
-            print(f"   Data sources: {data.get('data_sources', [])}")
             
             if expected_keywords:
                 answer = data.get('answer', '').lower()
@@ -151,6 +144,56 @@ def test_ai_query(question: str, expected_keywords: list = None):
             
     except Exception as e:
         print(f"❌ AI query error: {str(e)}")
+        return False
+
+def test_ai_advanced_query(question: str, expected_keywords: list = None):
+    """Test an advanced AI query with detailed response"""
+    print(f"\n🧠 Testing advanced AI query: '{question}'")
+    
+    try:
+        query_data = {
+            "question": question,
+            "context": "test query",
+            "date_range": {
+                "start": (datetime.now() - timedelta(days=30)).isoformat(),
+                "end": datetime.now().isoformat()
+            }
+        }
+        
+        response = requests.post(
+            f"{BASE_URL}/ai/ask-advanced",
+            json=query_data,
+            headers={"Content-Type": "application/json"}
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            print("✅ Advanced AI query successful:")
+            print(f"   Question: {data.get('question', 'N/A')}")
+            print(f"   Answer preview: {data.get('answer', 'N/A')[:100]}...")
+            print(f"   Confidence: {data.get('confidence', 0):.2f}")
+            print(f"   Data sources: {data.get('data_sources', [])}")
+            
+            if expected_keywords:
+                answer = data.get('answer', '').lower()
+                found_keywords = [kw for kw in expected_keywords if kw.lower() in answer]
+                if found_keywords:
+                    print(f"   ✅ Found expected keywords: {found_keywords}")
+                else:
+                    print(f"   ⚠️  Expected keywords not found: {expected_keywords}")
+            
+            return True
+        else:
+            print(f"❌ Advanced AI query failed: {response.status_code}")
+            try:
+                error_data = response.json()
+                print(f"   Error: {error_data.get('detail', 'Unknown error')}")
+            except:
+                print(f"   Error response: {response.text}")
+            return False
+            
+    except Exception as e:
+        print(f"❌ Advanced AI query error: {str(e)}")
         return False
 
 def main():
@@ -179,17 +222,25 @@ def main():
     for test_name, test_func in tests:
         if test_func():
             passed += 1
-    
-    # Run AI query tests
+     # Run AI query tests
     print("\n" + "=" * 50)
     print("🧠 Testing AI Query Functionality")
     print("=" * 50)
-    
+
     ai_passed = 0
     for question, keywords in ai_queries:
         if test_ai_query(question, keywords):
             ai_passed += 1
-    
+
+    # Run advanced AI query tests
+    print("\n🔬 Testing Advanced AI Query Functionality")
+    print("-" * 50)
+
+    advanced_ai_passed = 0
+    for question, keywords in ai_queries:
+        if test_ai_advanced_query(question, keywords):
+            advanced_ai_passed += 1
+
     total_ai = len(ai_queries)
     
     # Summary
@@ -197,10 +248,11 @@ def main():
     print("📊 Test Summary")
     print("=" * 50)
     print(f"Basic Tests: {passed}/{total} passed")
-    print(f"AI Queries: {ai_passed}/{total_ai} passed")
-    
+    print(f"Basic AI Queries: {ai_passed}/{total_ai} passed")
+    print(f"Advanced AI Queries: {advanced_ai_passed}/{total_ai} passed")
+
     overall_success = (passed == total) and (ai_passed > 0)
-    
+
     if overall_success:
         print("🎉 AI Insights Service is working correctly!")
         return 0
@@ -209,7 +261,9 @@ def main():
         if passed < total:
             print("   - Basic service endpoints may not be working")
         if ai_passed == 0:
-            print("   - AI query functionality is not working")
+            print("   - Basic AI query functionality is not working")
+        if advanced_ai_passed == 0:
+            print("   - Advanced AI query functionality is not working")
             print("   - Check your Gemini API key and database connection")
         return 1
 
