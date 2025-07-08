@@ -371,9 +371,13 @@ If the context is insufficient, explain what additional data would be needed.
         """
         Generate a rule-based response when Gemini API is unavailable
         """
-        query_lower = query.lower()
+        # Ensure we always return a valid string
+        if not query:
+            query = "financial analysis"
+        if not context:
+            context = ""
         
-        # Extract key numbers from context
+        query_lower = query.lower()
         context_lower = context.lower()
         
         # Simple rule-based responses based on query type
@@ -396,6 +400,21 @@ If the context is insufficient, explain what additional data would be needed.
 - Review customer payment patterns and outstanding invoices
 - Consider implementing customer retention strategies
 - Monitor upcoming months closely for trend continuation
+
+*Note: AI services are currently in demo mode. For full analysis, ensure proper API configuration.*"""
+            else:
+                return """**Revenue Analysis (Demo Data):**
+
+Based on available financial information:
+- Recent revenue trends show mixed performance
+- Consider reviewing your sales pipeline and customer engagement
+- Monitor payment patterns and outstanding invoices
+
+**Recommendations:**
+- Analyze revenue sources and trends
+- Review customer acquisition and retention strategies
+- Ensure timely invoice collection
+- Consider diversifying revenue streams
 
 *Note: AI services are currently in demo mode. For full analysis, ensure proper API configuration.*"""
         
