@@ -126,6 +126,10 @@ AI-Financial-Agent/
 │   └── utils/             # Utility functions for AI
 ├── backend/               # Backend FastAPI application
 │   ├── app.py             # Main application entry point
+│   ├── ai_insights/       # AI-powered financial insights service (NEW)
+│   │   ├── __init__.py    # Package initialization
+│   │   ├── service.py     # RAG service implementation
+│   │   └── router.py      # FastAPI endpoints for AI queries
 │   ├── config/            # Application configuration
 │   ├── database/          # Database connections and models
 │   ├── models/            # Data models
@@ -134,10 +138,82 @@ AI-Financial-Agent/
 │   ├── reporting/         # Reporting and analytics
 │   ├── schemas/           # Database schemas
 │   └── utils/             # Utility functions
+├── docs/                  # Documentation
+│   └── AI_INSIGHTS_SERVICE.md # AI insights service documentation
 └── scripts/               # Utility scripts
     ├── check_progress.py  # Project progress tracker
+    ├── test_ai_insights.py # AI insights service test script (NEW)
     └── initialize_database.py # Database setup script
 ```
+
+## ✨ AI-Powered Financial Insights (NEW)
+
+We've implemented a comprehensive AI-powered financial insights service that provides conversational AI capabilities for financial analysis. This service uses **Retrieval-Augmented Generation (RAG)** architecture to combine data retrieval from MongoDB with AI generation using Google's Gemini SDK.
+
+### 🤖 Features
+
+- **Conversational Financial Analysis**: Ask questions about your financial data in natural language
+- **Transaction Pattern Analysis**: Understand spending patterns, categorize expenses, identify trends
+- **Revenue Insights**: Track income sources, M-Pesa payments, revenue trends over time
+- **Customer Analytics**: Analyze customer payment patterns, outstanding invoices, top customers
+- **Financial Health Assessment**: Get comprehensive financial summaries and health scores
+- **Predictive Insights**: Basic forecasting and trend analysis for financial planning
+
+### 💬 Example Queries
+
+The AI can answer questions like:
+- "What are my spending patterns this month?"
+- "How much revenue did I generate from M-Pesa payments?"
+- "Which customers have outstanding invoices?"
+- "Show me a summary of my financial health"
+- "Compare this month's revenue to last month"
+- "What are my largest expenses this quarter?"
+
+### 🚀 Quick Start with AI Insights
+
+1. **Configure your Gemini API key** in `.env`:
+   ```bash
+   GEMINI_API_KEY=your-gemini-api-key-here
+   GEMINI_MODEL=gemini-1.5-pro
+   ```
+
+2. **Start the backend server**:
+   ```bash
+   cd backend
+   python app.py
+   ```
+
+3. **Test the AI service**:
+   ```bash
+   python scripts/test_ai_insights.py
+   ```
+
+### 📡 API Endpoints
+
+- **`POST /ai/ask`** - Ask financial questions and get AI-powered insights
+- **`GET /ai/health`** - Check service health and connectivity
+- **`GET /ai/status`** - Get service status and configuration
+- **`GET /ai/examples`** - Get example queries you can ask
+
+### 🔧 API Usage Example
+
+```bash
+# Ask a financial question
+curl -X POST "http://localhost:8000/ai/ask" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "question": "What are my spending patterns this month?",
+    "date_range": {
+      "start": "2024-01-01",
+      "end": "2024-01-31"
+    }
+  }'
+```
+
+### 📚 Complete Documentation
+
+For detailed documentation, configuration, and integration examples, see:
+- **[AI Insights Service Documentation](docs/AI_INSIGHTS_SERVICE.md)**
 
 ### Testing
 
