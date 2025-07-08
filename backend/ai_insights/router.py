@@ -77,7 +77,7 @@ async def get_service_status() -> Dict[str, Any]:
     try:
         return {
             "ai_insights_service": "running",
-            "database_status": "connected" if validate_database_connection() else "disconnected",
+            "database_status": "connected" if await run_in_threadpool(validate_database_connection) else "disconnected",
             "gemini_api_status": "connected" if validate_gemini_connection() else "disconnected",
             "supported_queries": [
                 "Revenue trends and analysis",
