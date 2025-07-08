@@ -1,0 +1,191 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Financial Insights</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .chat-container {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .message {
+            margin-bottom: 1rem;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+        }
+        .user-message {
+            background-color: #3b82f6;
+            color: white;
+            margin-left: 2rem;
+        }
+        .ai-message {
+            background-color: #f3f4f6;
+            color: #1f2937;
+            margin-right: 2rem;
+        }
+        .typing {
+            opacity: 0.7;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <header class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-gray-800 mb-2">AI Financial Insights</h1>
+            <p class="text-gray-600">Ask questions about your financial data</p>
+        </header>
+
+        <div class="max-w-4xl mx-auto">
+            <!-- Financial Overview Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <h3 class="text-lg font-semibold text-gray-700 mb-2">Revenue</h3>
+                    <p class="text-3xl font-bold text-green-600" id="revenue">KES 220,000</p>
+                    <p class="text-sm text-gray-500">June 2025</p>
+                </div>
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <h3 class="text-lg font-semibold text-gray-700 mb-2">Overdue Invoices</h3>
+                    <p class="text-3xl font-bold text-red-600" id="overdue">KES 57,500</p>
+                    <p class="text-sm text-gray-500">2 invoices</p>
+                </div>
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <h3 class="text-lg font-semibold text-gray-700 mb-2">Payment Success</h3>
+                    <p class="text-3xl font-bold text-blue-600" id="success">98%</p>
+                    <p class="text-sm text-gray-500">Last 30 days</p>
+                </div>
+            </div>
+
+            <!-- Chat Interface -->
+            <div class="bg-white rounded-lg shadow-md overflow-hidden">
+                <div class="bg-gray-800 text-white p-4">
+                    <h2 class="text-xl font-semibold">AI Financial Assistant</h2>
+                    <p class="text-sm text-gray-300">Ask questions about your financial data</p>
+                </div>
+                
+                <div class="chat-container p-4" id="chatContainer">
+                    <div class="ai-message message">
+                        <strong>AI Assistant:</strong> Hello! I'm your AI financial assistant. I can help you analyze your financial data, check invoice status, review payment trends, and provide insights. What would you like to know?
+                    </div>
+                </div>
+
+                <div class="border-t p-4">
+                    <div class="flex gap-2">
+                        <input
+                            type="text"
+                            id="queryInput"
+                            placeholder="Ask about your finances..."
+                            class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                        <button
+                            onclick="sendQuery()"
+                            class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                            Send
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Questions -->
+            <div class="mt-8">
+                <h3 class="text-lg font-semibold mb-4">Quick Questions</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <button onclick="askQuickQuestion('What is my current financial status?')" 
+                            class="p-3 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow text-left">
+                        <div class="font-medium text-gray-800">Financial Status</div>
+                        <div class="text-sm text-gray-600">Get an overview of your finances</div>
+                    </button>
+                    <button onclick="askQuickQuestion('Are there any overdue invoices?')" 
+                            class="p-3 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow text-left">
+                        <div class="font-medium text-gray-800">Overdue Invoices</div>
+                        <div class="text-sm text-gray-600">Check unpaid invoices</div>
+                    </button>
+                    <button onclick="askQuickQuestion('How are my payment collections performing?')" 
+                            class="p-3 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow text-left">
+                        <div class="font-medium text-gray-800">Payment Collections</div>
+                        <div class="text-sm text-gray-600">Review payment performance</div>
+                    </button>
+                    <button onclick="askQuickQuestion('What are my revenue trends?')" 
+                            class="p-3 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow text-left">
+                        <div class="font-medium text-gray-800">Revenue Trends</div>
+                        <div class="text-sm text-gray-600">Analyze revenue patterns</div>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function sendQuery() {
+            const input = document.getElementById('queryInput');
+            const query = input.value.trim();
+            
+            if (!query) return;
+            
+            // Add user message to chat
+            addMessage(query, 'user');
+            input.value = '';
+            
+            // Show typing indicator
+            const typingDiv = addMessage('AI is thinking...', 'ai', true);
+            
+            try {
+                const response = await fetch('/ai/ask', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        query: query,
+                        user_id: 'web_user_' + Date.now()
+                    })
+                });
+                
+                const data = await response.json();
+                
+                // Remove typing indicator
+                typingDiv.remove();
+                
+                if (response.ok) {
+                    addMessage(data.answer, 'ai');
+                } else {
+                    addMessage('Sorry, I encountered an error. Please try again.', 'ai');
+                }
+            } catch (error) {
+                typingDiv.remove();
+                addMessage('Error connecting to AI service. Please try again.', 'ai');
+            }
+        }
+        
+        function askQuickQuestion(question) {
+            document.getElementById('queryInput').value = question;
+            sendQuery();
+        }
+        
+        function addMessage(message, type, isTyping = false) {
+            const chatContainer = document.getElementById('chatContainer');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}-message ${isTyping ? 'typing' : ''}`;
+            
+            const prefix = type === 'user' ? 'You:' : 'AI Assistant:';
+            messageDiv.innerHTML = `<strong>${prefix}</strong> ${message}`;
+            
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            
+            return messageDiv;
+        }
+        
+        // Allow Enter key to send message
+        document.getElementById('queryInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendQuery();
+            }
+        });
+    </script>
+</body>
+</html>
