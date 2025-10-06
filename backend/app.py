@@ -24,6 +24,7 @@ try:
     from mpesa.router import router as mpesa_router
     from reconciliation.router import router as reconciliation_router
     from ai_insights.router import router as ai_insights_router
+    from auth.router import router as auth_router
     from database.mongodb import Database
     
     # Flag to track if all imports were successful
@@ -58,15 +59,19 @@ app.add_middleware(
 
 # Include routers if imports were successful
 if all_imports_successful:
+    app.include_router(auth_router)  # Authentication router - must be first
     app.include_router(mpesa_router)
     app.include_router(reconciliation_router)
-    app.include_router(ai_insights_router)  # Add AI insights router
+    app.include_router(ai_insights_router)
     
-    # Initialize database connection
+    # Initialize database connection and state
     @app.on_event("startup")
     async def startup_db_client():
         logger.info("Initializing database connection...")
-        app.db = Database.get_instance()
+        db_instance = Database.get_instance()
+        app.db = db_instance
+        # Make database available in app state for dependency injection
+        app.state.db = db_instance
         
     @app.on_event("shutdown")
     async def shutdown_db_client():
