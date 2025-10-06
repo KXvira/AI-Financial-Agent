@@ -25,6 +25,7 @@ try:
     from reconciliation.router import router as reconciliation_router
     from ai_insights.router import router as ai_insights_router
     from auth.router import router as auth_router
+    from ocr.router import router as ocr_router
     from database.mongodb import Database
     
     # Flag to track if all imports were successful
@@ -60,6 +61,7 @@ app.add_middleware(
 # Include routers if imports were successful
 if all_imports_successful:
     app.include_router(auth_router)  # Authentication router - must be first
+    app.include_router(ocr_router)   # OCR and expense management
     app.include_router(mpesa_router)
     app.include_router(reconciliation_router)
     app.include_router(ai_insights_router)
