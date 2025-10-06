@@ -56,12 +56,18 @@ export default function Navbar() {
               >
                 Customers
               </Link>
-              <Link 
-                href="/ai-insights" 
-                className="text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium transition-colors"
-              >
-                AI Insights
-              </Link>
+                              <Link 
+                  href="/ai-insights"
+                  className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
+                >
+                  AI Insights
+                </Link>
+                <Link 
+                  href="/expenses"
+                  className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
+                >
+                  Expenses
+                </Link>
             </nav>
           )}
 
