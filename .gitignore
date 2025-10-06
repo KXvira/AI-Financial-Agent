@@ -28,6 +28,7 @@ ENV/
 .env
 .venv
 venv-new/
+sprint7_env/
 # IDE files
 .idea/
 .vscode/
