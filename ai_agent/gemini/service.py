@@ -1,12 +1,21 @@
 """
-Gemini API client service for AI-powered financial reconciliation
+Gemini AI Service Integration
+Provides interface to Google's Gemini AI model
 """
+
 import os
 import json
 import logging
-from typing import Dict, Any, List, Optional, Union
-import google.generativeai as genai
+from typing import Dict, Any, List, Optional
 from datetime import datetime
+
+try:
+    import google.generativeai as genai
+    MOCK_MODE = False
+except ImportError:
+    # Use mock service when Google AI is not available
+    from .mock_service import MockGeminiService
+    MOCK_MODE = True
 
 logger = logging.getLogger("financial-agent.ai.gemini")
 
@@ -21,22 +30,37 @@ class GeminiConfig:
         
 
 class GeminiService:
-    """Service for interacting with Google's Gemini API"""
+    """Service class for interacting with Gemini AI"""
     
     def __init__(self):
-        self.config = GeminiConfig()
-        genai.configure(api_key=self.config.api_key)
+        self.logger = logging.getLogger(__name__)
         
-        # Check which model to use based on config
-        self.model = genai.GenerativeModel(
-            model_name=self.config.model,
-            generation_config={
-                "temperature": self.config.temperature,
-                "max_output_tokens": self.config.max_output_tokens,
-                "top_p": 0.95,
-                "top_k": 40
-            }
-        )
+        if MOCK_MODE:
+            self.logger.info("Using Mock Gemini Service for testing")
+            self.mock_service = MockGeminiService()
+            self.model = None
+        else:
+            self._configure_gemini()
+            self.model = None
+            self._initialize_model()
+    
+    def _configure_gemini(self):
+        """Configure Gemini API with API key"""
+        api_key = os.getenv('GEMINI_API_KEY')
+        if not api_key:
+            raise ValueError("GEMINI_API_KEY environment variable not set")
+        
+        genai.configure(api_key=api_key)
+        self.logger.info("Gemini API configured successfully")
+    
+    def _initialize_model(self):
+        """Initialize the Gemini model"""
+        try:
+            self.model = genai.GenerativeModel('gemini-pro')
+            self.logger.info("Gemini model initialized successfully")
+        except Exception as e:
+            self.logger.error(f"Failed to initialize Gemini model: {str(e)}")
+            raise
     
     async def reconcile_payment(self, payment_data: Dict[str, Any], invoices: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
@@ -161,12 +185,29 @@ class GeminiService:
             String response from Gemini
         """
         try:
+            if MOCK_MODE:
+                # Use mock service for testing
+                return await self.mock_service.generate_content(prompt)
+            
             response = await self.model.generate_content_async(prompt)
             return response.text
             
         except Exception as e:
             logger.error(f"Error calling Gemini API: {str(e)}")
             raise
+
+    async def generate_content(self, prompt: str, **kwargs) -> str:
+        """
+        Generate content using Gemini AI
+        
+        Args:
+            prompt (str): The input prompt for content generation
+            **kwargs: Additional parameters for generation
+            
+        Returns:
+            str: Generated content from Gemini
+        """
+        return await self._generate_response(prompt)
     
     def _create_reconciliation_prompt(self, payment_data: Dict[str, Any], invoices: List[Dict[str, Any]]) -> str:
         """

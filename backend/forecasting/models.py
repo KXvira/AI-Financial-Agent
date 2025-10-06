@@ -8,6 +8,8 @@ from typing import Dict, List, Optional, Tuple, Any
 import pandas as pd
 import numpy as np
 from pydantic import BaseModel, Field
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.metrics import mean_absolute_error, mean_squared_error
 import logging
 
 # Configure logging
