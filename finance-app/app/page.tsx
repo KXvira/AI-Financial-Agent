@@ -1,6 +1,9 @@
 // app/page.tsx
+'use client';
+
 import StatCard from '../components/StatCard';
 import Link from 'next/link';
+import { useAuth, withAuth } from '../contexts/AuthContext';
 
 const recentPayments = [
   { reference: 'PAY-2023-005', client: 'Creative Designs Co.', amount: 'KES 60,000', date: '2023-09-15' },
@@ -10,11 +13,25 @@ const recentPayments = [
   { reference: 'PAY-2023-001', client: 'Tech Solutions Ltd.', amount: 'KES 50,000', date: '2023-08-16' }
 ];
 
-export default function Home() {
+function Dashboard() {
+  const { user } = useAuth();
+
   return (
     <div>
-      <h1 className="text-3xl font-bold mb-1">Dashboard</h1>
-      <p className="text-sm text-gray-500 mb-6">Overview of your business finances</p>
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h1 className="text-3xl font-bold mb-1">
+            Welcome back, {user?.full_name?.split(' ')[0] || 'User'}!
+          </h1>
+          <p className="text-sm text-gray-500">
+            Overview of {user?.business_name ? `${user.business_name}'s` : 'your'} finances
+          </p>
+        </div>
+        <div className="text-right">
+          <div className="text-sm text-gray-500">Role</div>
+          <div className="font-medium capitalize text-blue-600">{user?.role}</div>
+        </div>
+      </div>
 
       <div className=" grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <StatCard title="Total Invoices" amount="KES 120,000" change="10%" isPositive />
@@ -100,5 +117,7 @@ export default function Home() {
     </div>
   );
 }
+
+export default withAuth(Dashboard);
 
 

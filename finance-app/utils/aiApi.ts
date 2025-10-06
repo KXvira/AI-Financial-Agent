@@ -27,22 +27,44 @@ export class AIFinancialInsightsClient {
     this.baseUrl = baseUrl;
   }
 
-  // Generic request method
+  // Generic request method with authentication
   private async request<T>(
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
     
+    // Get authentication token if available
+    const token = typeof window !== 'undefined' ? 
+      document.cookie.split('; ').find(row => row.startsWith('fintrack_access_token='))?.split('=')[1] ||
+      localStorage.getItem('fintrack_access_token') : null;
+    
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    };
+
+    // Add authorization header if token exists
+    if (token) {
+      (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
+    }
+    
     const response = await fetch(url, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
       ...options,
+      headers,
     });
 
     if (!response.ok) {
+      // If unauthorized, might need to refresh token or redirect to login
+      if (response.status === 401 && typeof window !== 'undefined') {
+        // Clear tokens and redirect to login
+        document.cookie = 'fintrack_access_token=; Max-Age=0';
+        document.cookie = 'fintrack_refresh_token=; Max-Age=0';
+        localStorage.removeItem('fintrack_access_token');
+        localStorage.removeItem('fintrack_refresh_token');
+        window.location.href = '/auth/login';
+      }
+      
       throw new Error(`API Error: ${response.status} - ${response.statusText}`);
     }
 
