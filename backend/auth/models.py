@@ -23,7 +23,7 @@ class UserBase(BaseModel):
     """Base user model"""
     email: EmailStr
     company_name: str = Field(..., min_length=2, max_length=100)
-    phone_number: str = Field(..., regex=r'^\+254[0-9]{9}$')
+    phone_number: str = Field(..., pattern=r'^\+254[0-9]{9}$')
     role: UserRole = UserRole.OWNER
     is_active: bool = True
 

@@ -102,15 +102,14 @@ async def login(
         user_agent = get_user_agent(request)
         
         # Authenticate user
-        user = await auth_service.login_user(
-            credentials.email, 
-            credentials.password, 
+        login_response = await auth_service.login_user(
+            credentials, 
             client_ip, 
             user_agent
         )
         
-        # Generate tokens
-        tokens = auth_service.create_tokens(user.id, user.email)
+        user = login_response["user"]
+        tokens = login_response["tokens"]
         
         logger.info(f"User logged in successfully: {user.email}")
         
@@ -124,9 +123,9 @@ async def login(
                 "is_active": user.is_active,
                 "is_verified": user.is_verified
             },
-            "access_token": tokens["access_token"],
-            "refresh_token": tokens["refresh_token"],
-            "token_type": "bearer"
+            "access_token": tokens.access_token,
+            "refresh_token": tokens.refresh_token,
+            "token_type": tokens.token_type
         }
         
     except ValueError as e:

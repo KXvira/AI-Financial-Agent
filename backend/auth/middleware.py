@@ -49,6 +49,17 @@ class JWTBearer(HTTPBearer):
 # Dependency injection instances
 security = JWTBearer()
 
+# Global auth service instance
+_auth_service: Optional[AuthService] = None
+
+async def get_auth_service() -> AuthService:
+    """Get initialized auth service instance"""
+    global _auth_service
+    if _auth_service is None:
+        _auth_service = AuthService()
+        await _auth_service.initialize()
+    return _auth_service
+
 def get_auth_service(request: Request) -> AuthService:
     """Get authentication service instance"""
     # Get database from app state

@@ -16,16 +16,19 @@ from .models import (
     User, UserCreate, UserLogin, UserProfile, Token, 
     TokenData, UserRole, UserStatus, AuditLog
 )
+from .database import auth_db_service
+from bson import ObjectId
 
 logger = logging.getLogger("financial-agent.auth.service")
 
 class AuthService:
     """Authentication service for user management"""
     
-    def __init__(self, db: AsyncIOMotorDatabase):
+    def __init__(self, db: AsyncIOMotorDatabase = None):
         self.db = db
-        self.users_collection = db.users
-        self.audit_logs_collection = db.auth_audit_logs
+        self.users_collection = None
+        self.audit_logs_collection = None
+        self._initialized = False
         
         # JWT Configuration
         self.jwt_secret = os.getenv("JWT_SECRET_KEY", "your-secret-key-change-in-production")
@@ -36,10 +39,20 @@ class AuthService:
         # Security Configuration
         self.max_login_attempts = int(os.getenv("MAX_LOGIN_ATTEMPTS", "5"))
         self.lockout_duration_minutes = int(os.getenv("LOCKOUT_DURATION_MINUTES", "15"))
+    
+    async def initialize(self):
+        """Initialize database connections"""
+        if not self._initialized:
+            if self.db is None:
+                self.db = await auth_db_service.get_database()
+            self.users_collection = await auth_db_service.get_users_collection()
+            self.audit_logs_collection = await auth_db_service.get_audit_logs_collection()
+            self._initialized = True
         
     async def register_user(self, user_data: UserCreate, ip_address: str, user_agent: str) -> Dict[str, Any]:
         """Register a new user with comprehensive validation"""
         try:
+            await self.initialize()
             # Validate password confirmation
             if user_data.password != user_data.confirm_password:
                 raise HTTPException(
@@ -125,6 +138,7 @@ class AuthService:
     async def login_user(self, login_data: UserLogin, ip_address: str, user_agent: str) -> Token:
         """Authenticate user and return JWT tokens"""
         try:
+            await self.initialize()
             # Get user by email
             user_doc = await self.users_collection.find_one({"email": login_data.email})
             
@@ -219,7 +233,11 @@ class AuthService:
             
             logger.info(f"User logged in: {user.email}")
             
-            return tokens
+            # Return both user info and tokens
+            return {
+                "user": user,
+                "tokens": tokens
+            }
             
         except HTTPException:
             raise
