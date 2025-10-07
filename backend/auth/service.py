@@ -156,6 +156,8 @@ class AuthService:
                     detail="Invalid email or password"
                 )
             
+            # Convert ObjectId to string for Pydantic model
+            user_doc["_id"] = str(user_doc["_id"])
             user = User(**user_doc)
             
             # Check if account is locked

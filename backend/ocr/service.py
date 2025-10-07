@@ -110,7 +110,7 @@ class OCRService:
                 return {}
             
             # Construct AI prompt for receipt analysis
-            prompt = f\"\"\"
+            prompt = f"""
             Analyze this Kenyan receipt text and extract/enhance the following information:
             
             Raw OCR Text:
@@ -131,7 +131,7 @@ class OCRService:
             7. Business context (is this a business expense?)
             
             Focus on Kenyan business context and common expense types.
-            \"\"\"
+            """
             
             # Get AI analysis
             ai_response = await self.ai_service.analyze_text(prompt)

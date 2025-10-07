@@ -1,0 +1,9 @@
+{
+  "id": "68e557beae9698223d54af45",
+  "email": "testuser_20251007_211110@finagent.com",
+  "company_name": "Test Financial Company",
+  "phone_number": "+254712345678",
+  "role": "owner",
+  "is_active": true,
+  "email_verified": false
+}
