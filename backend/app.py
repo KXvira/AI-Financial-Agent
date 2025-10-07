@@ -19,21 +19,61 @@ try:
 except ImportError:
     print("python-dotenv not installed. Environment variables need to be set manually.")
 
-# Import application modules
+# Import application modules individually
+auth_router = None
+ocr_router = None
+mpesa_router = None
+reconciliation_router = None
+ai_insights_router = None
+Database = None
+
+# Import auth router (priority)
+try:
+    from auth.router import router as auth_router
+    print("✅ Auth router imported successfully")
+except ImportError as e:
+    print(f"❌ Auth router import failed: {e}")
+
+# Import other routers
+try:
+    from database.mongodb import Database
+    print("✅ Database imported successfully")
+except ImportError as e:
+    print(f"❌ Database import failed: {e}")
+
+try:
+    from ocr.router import router as ocr_router
+    print("✅ OCR router imported successfully")
+except ImportError as e:
+    print(f"❌ OCR router import failed: {e}")
+
 try:
     from mpesa.router import router as mpesa_router
-    from reconciliation.router import router as reconciliation_router
-    from ai_insights.router import router as ai_insights_router
-    from auth.router import router as auth_router
-    from ocr.router import router as ocr_router
-    from database.mongodb import Database
-    
-    # Flag to track if all imports were successful
-    all_imports_successful = True
+    print("✅ M-Pesa router imported successfully")
 except ImportError as e:
-    print(f"Error importing application modules: {e}")
-    print("Some features may not be available.")
-    all_imports_successful = False
+    print(f"❌ M-Pesa router import failed: {e}")
+
+try:
+    from reconciliation.router import router as reconciliation_router
+    print("✅ Reconciliation router imported successfully")
+except ImportError as e:
+    print(f"❌ Reconciliation router import failed: {e}")
+
+try:
+    from ai_insights.router import router as ai_insights_router
+    print("✅ AI Insights router imported successfully")
+except ImportError as e:
+    print(f"❌ AI Insights router import failed: {e}")
+
+# Flag to track if all imports were successful
+all_imports_successful = all([
+    auth_router is not None,
+    Database is not None,
+    ocr_router is not None,
+    mpesa_router is not None,
+    reconciliation_router is not None,
+    ai_insights_router is not None
+])
 
 # Setup logging
 logging.basicConfig(
@@ -58,15 +98,29 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include routers if imports were successful
-if all_imports_successful:
-    app.include_router(auth_router)  # Authentication router - must be first
-    app.include_router(ocr_router)   # OCR and expense management
+# Include routers that were successfully imported
+if auth_router:
+    app.include_router(auth_router)
+    print("✅ Auth router included in app")
+
+if ocr_router:
+    app.include_router(ocr_router)
+    print("✅ OCR router included in app")
+
+if mpesa_router:
     app.include_router(mpesa_router)
+    print("✅ M-Pesa router included in app")
+
+if reconciliation_router:
     app.include_router(reconciliation_router)
+    print("✅ Reconciliation router included in app")
+
+if ai_insights_router:
     app.include_router(ai_insights_router)
+    print("✅ AI Insights router included in app")
     
-    # Initialize database connection and state
+# Initialize database connection and state (if database was imported)
+if Database:
     @app.on_event("startup")
     async def startup_db_client():
         logger.info("Initializing database connection...")
@@ -80,6 +134,8 @@ if all_imports_successful:
         logger.info("Closing database connection...")
         if hasattr(app, "db"):
             await app.db.close()
+else:
+    logger.warning("Database not available - database operations will not work")
 
 # Health check endpoint
 @app.get("/")

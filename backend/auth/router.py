@@ -48,27 +48,26 @@ async def register(
         client_ip = get_client_ip(request)
         user_agent = get_user_agent(request)
         
-        # Register user
-        user = await auth_service.register_user(user_data, client_ip, user_agent)
-        
-        # Generate tokens
-        tokens = auth_service.create_tokens(user.id, user.email)
+        # Register user (returns user and tokens)
+        registration_result = await auth_service.register_user(user_data, client_ip, user_agent)
+        user = registration_result['user']
+        tokens = registration_result['tokens']
         
         logger.info(f"User registered successfully: {user.email}")
         
         return {
             "message": "User registered successfully",
             "user": {
-                "id": str(user.id),
+                "id": user.id,
                 "email": user.email,
                 "full_name": user.full_name,
-                "role": user.role.value,
+                "role": user.role,
                 "is_active": user.is_active,
                 "is_verified": user.is_verified
             },
-            "access_token": tokens["access_token"],
-            "refresh_token": tokens["refresh_token"],
-            "token_type": "bearer"
+            "access_token": tokens.access_token,
+            "refresh_token": tokens.refresh_token,
+            "token_type": tokens.token_type
         }
         
     except ValueError as e:
