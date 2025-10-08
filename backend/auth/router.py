@@ -60,10 +60,10 @@ async def register(
             "user": {
                 "id": user.id,
                 "email": user.email,
-                "full_name": user.full_name,
+                "full_name": user.company_name,
                 "role": user.role,
                 "is_active": user.is_active,
-                "is_verified": user.is_verified
+                "is_verified": user.email_verified
             },
             "access_token": tokens.access_token,
             "refresh_token": tokens.refresh_token,
@@ -117,10 +117,10 @@ async def login(
             "user": {
                 "id": str(user.id),
                 "email": user.email,
-                "full_name": user.full_name,
+                "full_name": user.company_name,
                 "role": user.role.value,
                 "is_active": user.is_active,
-                "is_verified": user.is_verified
+                "is_verified": user.email_verified
             },
             "access_token": tokens.access_token,
             "refresh_token": tokens.refresh_token,

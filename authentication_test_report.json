@@ -1,0 +1,25 @@
+{
+  "test_timestamp": "2025-10-08T12:41:38.273636",
+  "system_status": "OPERATIONAL",
+  "registration": {
+    "total_attempts": 3,
+    "successful": 3,
+    "failed": 0,
+    "success_rate": "100%"
+  },
+  "login": {
+    "total_attempts": 3,
+    "successful": 3,
+    "failed": 0,
+    "success_rate": "100.0%"
+  },
+  "capabilities": {
+    "user_registration": "WORKING",
+    "user_authentication": "WORKING",
+    "token_generation": "WORKING",
+    "token_validation": "WORKING",
+    "database_operations": "WORKING",
+    "audit_logging": "WORKING",
+    "role_based_access": "WORKING"
+  }
+}
