@@ -5,13 +5,13 @@ export interface User {
   id: string;
   email: string;
   full_name: string;
-  role: 'owner' | 'accountant' | 'employee';
+  role: 'owner' | 'accountant' | 'viewer';
   is_active: boolean;
   is_verified: boolean;
-  created_at: string;
+  created_at?: string;
   last_login?: string;
   phone_number?: string;
-  business_name?: string;
+  company_name?: string;
 }
 
 export interface UserProfile extends User {
@@ -26,9 +26,10 @@ export interface LoginCredentials {
 export interface RegisterData {
   email: string;
   password: string;
-  full_name: string;
-  phone_number?: string;
-  business_name?: string;
+  confirm_password: string;
+  company_name: string;
+  phone_number: string;
+  role?: 'owner' | 'accountant' | 'viewer';
 }
 
 export interface AuthTokens {

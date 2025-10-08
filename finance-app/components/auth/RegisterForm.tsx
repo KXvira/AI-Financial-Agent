@@ -1,6 +1,3 @@
-// components/auth/RegisterForm.tsx
-// User registration form component
-
 'use client';
 
 import { useState } from 'react';
@@ -18,76 +15,50 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
   const [formData, setFormData] = useState<RegisterData>({
     email: '',
     password: '',
-    full_name: '',
+    confirm_password: '',
+    company_name: '',
     phone_number: '',
-    business_name: '',
+    role: 'owner',
   });
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [showPassword, setShowPassword] = useState(false);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    
-    if (name === 'confirmPassword') {
-      setConfirmPassword(value);
-    } else {
-      setFormData(prev => ({ ...prev, [name]: value }));
-    }
-    
-    // Clear error when user starts typing
+    setFormData(prev => ({ ...prev, [name]: value }));
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
     }
   };
 
-  const validatePassword = (password: string): string[] => {
-    const issues = [];
-    if (password.length < 8) issues.push('at least 8 characters');
-    if (!/[A-Z]/.test(password)) issues.push('one uppercase letter');
-    if (!/[a-z]/.test(password)) issues.push('one lowercase letter');
-    if (!/\d/.test(password)) issues.push('one number');
-    if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) issues.push('one special character');
-    return issues;
-  };
-
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
-    // Email validation
     if (!formData.email) {
       newErrors.email = 'Email is required';
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
       newErrors.email = 'Please enter a valid email';
     }
 
-    // Password validation
     if (!formData.password) {
       newErrors.password = 'Password is required';
-    } else {
-      const passwordIssues = validatePassword(formData.password);
-      if (passwordIssues.length > 0) {
-        newErrors.password = `Password must contain ${passwordIssues.join(', ')}`;
-      }
+    } else if (formData.password.length < 8) {
+      newErrors.password = 'Password must be at least 8 characters';
     }
 
-    // Confirm password validation
-    if (!confirmPassword) {
-      newErrors.confirmPassword = 'Please confirm your password';
-    } else if (formData.password !== confirmPassword) {
-      newErrors.confirmPassword = 'Passwords do not match';
+    if (!formData.confirm_password) {
+      newErrors.confirm_password = 'Please confirm your password';
+    } else if (formData.password !== formData.confirm_password) {
+      newErrors.confirm_password = 'Passwords do not match';
     }
 
-    // Full name validation
-    if (!formData.full_name) {
-      newErrors.full_name = 'Full name is required';
-    } else if (formData.full_name.length < 2) {
-      newErrors.full_name = 'Full name must be at least 2 characters';
+    if (!formData.company_name) {
+      newErrors.company_name = 'Company name is required';
     }
 
-    // Phone number validation (optional but format check if provided)
-    if (formData.phone_number && !/^\+?[\d\s-()]+$/.test(formData.phone_number)) {
-      newErrors.phone_number = 'Please enter a valid phone number';
+    if (!formData.phone_number) {
+      newErrors.phone_number = 'Phone number is required';
+    } else if (!/^\+254[0-9]{9}$/.test(formData.phone_number)) {
+      newErrors.phone_number = 'Please enter a valid Kenyan phone number (+254XXXXXXXXX)';
     }
 
     setErrors(newErrors);
@@ -96,28 +67,16 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!validateForm()) return;
 
     try {
-      // Remove empty optional fields
-      const submitData = { ...formData };
-      if (!submitData.phone_number) delete submitData.phone_number;
-      if (!submitData.business_name) delete submitData.business_name;
-
-      await register(submitData);
+      await register(formData);
       onSuccess?.();
     } catch (error) {
       if (error instanceof AuthAPIError) {
-        if (error.message.includes('Email already registered')) {
-          setErrors({ email: 'This email is already registered' });
-        } else if (error.status === 400) {
-          setErrors({ general: error.message });
-        } else {
-          setErrors({ general: 'Registration failed. Please try again.' });
-        }
+        setErrors({ general: error.message });
       } else {
-        setErrors({ general: 'Network error. Please check your connection.' });
+        setErrors({ general: 'Registration failed. Please try again.' });
       }
     }
   };
@@ -127,36 +86,15 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
       <div className="bg-white rounded-lg shadow-md p-8">
         <div className="text-center mb-8">
           <h2 className="text-2xl font-bold text-gray-900">Create Account</h2>
-          <p className="text-gray-600 mt-2">Start managing your finances with FinTrack</p>
+          <p className="text-gray-600 mt-2">Start managing your finances</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-4">
           {errors.general && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
               {errors.general}
             </div>
           )}
-
-          <div>
-            <label htmlFor="full_name" className="block text-sm font-medium text-gray-700 mb-2">
-              Full Name *
-            </label>
-            <input
-              type="text"
-              id="full_name"
-              name="full_name"
-              value={formData.full_name}
-              onChange={handleInputChange}
-              className={`w-full px-4 py-3 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                errors.full_name ? 'border-red-300' : 'border-gray-300'
-              }`}
-              placeholder="Enter your full name"
-              disabled={loading}
-            />
-            {errors.full_name && (
-              <p className="mt-1 text-sm text-red-600">{errors.full_name}</p>
-            )}
-          </div>
 
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
@@ -168,74 +106,33 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
               name="email"
               value={formData.email}
               onChange={handleInputChange}
-              className={`w-full px-4 py-3 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                errors.email ? 'border-red-300' : 'border-gray-300'
-              }`}
+              className="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
               placeholder="Enter your email"
               disabled={loading}
             />
-            {errors.email && (
-              <p className="mt-1 text-sm text-red-600">{errors.email}</p>
-            )}
+            {errors.email && <p className="mt-1 text-sm text-red-600">{errors.email}</p>}
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-              Password *
-            </label>
-            <div className="relative">
-              <input
-                type={showPassword ? 'text' : 'password'}
-                id="password"
-                name="password"
-                value={formData.password}
-                onChange={handleInputChange}
-                className={`w-full px-4 py-3 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  errors.password ? 'border-red-300' : 'border-gray-300'
-                }`}
-                placeholder="Create a password"
-                disabled={loading}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                disabled={loading}
-              >
-                <span className="text-gray-400 text-sm">
-                  {showPassword ? 'Hide' : 'Show'}
-                </span>
-              </button>
-            </div>
-            {errors.password && (
-              <p className="mt-1 text-sm text-red-600">{errors.password}</p>
-            )}
-          </div>
-
-          <div>
-            <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
-              Confirm Password *
+            <label htmlFor="company_name" className="block text-sm font-medium text-gray-700 mb-2">
+              Company Name *
             </label>
             <input
-              type={showPassword ? 'text' : 'password'}
-              id="confirmPassword"
-              name="confirmPassword"
-              value={confirmPassword}
+              type="text"
+              id="company_name"
+              name="company_name"
+              value={formData.company_name}
               onChange={handleInputChange}
-              className={`w-full px-4 py-3 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                errors.confirmPassword ? 'border-red-300' : 'border-gray-300'
-              }`}
-              placeholder="Confirm your password"
+              className="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+              placeholder="Enter your company name"
               disabled={loading}
             />
-            {errors.confirmPassword && (
-              <p className="mt-1 text-sm text-red-600">{errors.confirmPassword}</p>
-            )}
+            {errors.company_name && <p className="mt-1 text-sm text-red-600">{errors.company_name}</p>}
           </div>
 
           <div>
             <label htmlFor="phone_number" className="block text-sm font-medium text-gray-700 mb-2">
-              Phone Number (Optional)
+              Phone Number *
             </label>
             <input
               type="tel"
@@ -243,49 +140,71 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
               name="phone_number"
               value={formData.phone_number}
               onChange={handleInputChange}
-              className={`w-full px-4 py-3 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                errors.phone_number ? 'border-red-300' : 'border-gray-300'
-              }`}
-              placeholder="+254 700 000 000"
+              className="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+              placeholder="+254712345678"
               disabled={loading}
             />
-            {errors.phone_number && (
-              <p className="mt-1 text-sm text-red-600">{errors.phone_number}</p>
-            )}
+            {errors.phone_number && <p className="mt-1 text-sm text-red-600">{errors.phone_number}</p>}
           </div>
 
           <div>
-            <label htmlFor="business_name" className="block text-sm font-medium text-gray-700 mb-2">
-              Business Name (Optional)
+            <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-2">
+              Role *
+            </label>
+            <select
+              id="role"
+              name="role"
+              value={formData.role}
+              onChange={handleInputChange}
+              className="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+              disabled={loading}
+            >
+              <option value="owner">Business Owner</option>
+              <option value="accountant">Accountant</option>
+              <option value="viewer">Viewer</option>
+            </select>
+          </div>
+
+          <div>
+            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+              Password *
             </label>
             <input
-              type="text"
-              id="business_name"
-              name="business_name"
-              value={formData.business_name}
+              type="password"
+              id="password"
+              name="password"
+              value={formData.password}
               onChange={handleInputChange}
-              className="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="Enter your business name"
+              className="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+              placeholder="Create a password"
               disabled={loading}
             />
+            {errors.password && <p className="mt-1 text-sm text-red-600">{errors.password}</p>}
+          </div>
+
+          <div>
+            <label htmlFor="confirm_password" className="block text-sm font-medium text-gray-700 mb-2">
+              Confirm Password *
+            </label>
+            <input
+              type="password"
+              id="confirm_password"
+              name="confirm_password"
+              value={formData.confirm_password}
+              onChange={handleInputChange}
+              className="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+              placeholder="Confirm your password"
+              disabled={loading}
+            />
+            {errors.confirm_password && <p className="mt-1 text-sm text-red-600">{errors.confirm_password}</p>}
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-blue-600 text-white py-3 px-4 rounded-md hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="w-full bg-blue-600 text-white py-3 px-4 rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors"
           >
-            {loading ? (
-              <span className="flex items-center justify-center">
-                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Creating Account...
-              </span>
-            ) : (
-              'Create Account'
-            )}
+            {loading ? 'Creating Account...' : 'Create Account'}
           </button>
         </form>
 

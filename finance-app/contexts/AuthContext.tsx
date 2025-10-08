@@ -177,7 +177,7 @@ export function withAuth<T extends {}>(Component: React.ComponentType<T>) {
     if (!user) {
       // Redirect to login if not authenticated
       if (typeof window !== 'undefined') {
-        window.location.href = '/auth/login';
+        window.location.href = '/auth';
       }
       return null;
     }
