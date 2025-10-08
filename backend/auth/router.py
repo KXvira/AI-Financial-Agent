@@ -62,7 +62,7 @@ async def register(
                 "email": user.email,
                 "full_name": user.company_name,
                 "role": user.role,
-                "is_active": user.is_active,
+                "is_active": user.status == "active",
                 "is_verified": user.email_verified
             },
             "access_token": tokens.access_token,

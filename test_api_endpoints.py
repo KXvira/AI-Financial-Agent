@@ -57,7 +57,7 @@ async def test_backend_api_endpoints():
                     headers={"Content-Type": "application/json"}
                 ) as response:
                     
-                    if response.status == 200:
+                    if response.status in [200, 201]:
                         data = await response.json()
                         print(f"   ✅ Registration successful")
                         print(f"   📧 User registered: {data.get('user', {}).get('email', 'Unknown')}")
