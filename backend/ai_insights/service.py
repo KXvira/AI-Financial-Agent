@@ -43,7 +43,7 @@ class AIInsightsConfig:
         
         # Gemini API configuration
         self.gemini_api_key = os.environ.get("GEMINI_API_KEY", "your-api-key")
-        self.gemini_model = os.environ.get("GEMINI_MODEL", "gemini-1.5-pro")
+        self.gemini_model = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
         
         # Configure Gemini SDK
         genai.configure(api_key=self.gemini_api_key)

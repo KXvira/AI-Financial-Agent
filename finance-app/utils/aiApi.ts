@@ -1,7 +1,7 @@
 // utils/aiApi.ts
 // AI Financial Insights API Client
 
-const API_BASE_URL = 'http://localhost:8002';
+const API_BASE_URL = 'http://localhost:8000';
 
 // API Response Types
 export interface AIResponse {
@@ -73,7 +73,7 @@ export class AIFinancialInsightsClient {
 
   // Health check
   async checkHealth(): Promise<HealthCheckResponse> {
-    return this.request<HealthCheckResponse>('/health');
+    return this.request<HealthCheckResponse>('/ai/health');
   }
 
   // Ask AI question
