@@ -25,6 +25,7 @@ MANIFEST
 venv/
 env/
 ENV/
+venv-fresh/
 .env
 .venv
 venv-new/
