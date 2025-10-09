@@ -115,16 +115,7 @@ export class AIFinancialInsightsClient {
 
   // Get data summary
   async getDataSummary(): Promise<DataSummaryResponse> {
-    // For now, return mock data since we don't have a specific endpoint
-    // This can be replaced with an actual backend endpoint later
-    return {
-      total_transactions: 0,
-      total_invoices: 0,
-      mpesa_transactions: 0,
-      pending_invoices: 0,
-      total_revenue: "KES 0",
-      pending_amount: "KES 0"
-    };
+    return this.request<DataSummaryResponse>('/ai/data-summary');
   }
 }
 
