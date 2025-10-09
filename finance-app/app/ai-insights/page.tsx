@@ -13,24 +13,28 @@ export default function AIInsightsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'error' | 'checking'>('checking');
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // Check health
-        const health = await aiClient.checkHealth();
-        setConnectionStatus('connected');
-        
-        // Fetch data summary
-        const summary = await aiClient.getDataSummary();
-        setDataSummary(summary);
-      } catch (error) {
-        console.error('Error fetching AI data:', error);
-        setConnectionStatus('error');
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  const fetchData = async () => {
+    setIsLoading(true);
+    setConnectionStatus('checking');
+    try {
+      console.log('Checking AI health...'); // Debug log
+      // Check health
+      const health = await aiClient.checkHealth();
+      console.log('AI health response:', health); // Debug log
+      setConnectionStatus('connected');
+      
+      // Fetch data summary
+      const summary = await aiClient.getDataSummary();
+      setDataSummary(summary);
+    } catch (error) {
+      console.error('Error fetching AI data:', error);
+      setConnectionStatus('error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchData();
   }, []);
 
@@ -93,7 +97,7 @@ export default function AIInsightsPage() {
                 Unable to connect to the AI backend service. Please ensure the service is running on port 8000.
               </p>
               <button 
-                onClick={() => window.location.reload()}
+                onClick={fetchData}
                 className="mt-3 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
               >
                 Retry Connection

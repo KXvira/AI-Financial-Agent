@@ -13,10 +13,19 @@ export interface AIResponse {
 
 export interface HealthCheckResponse {
   status: string;
-  service: string;
-  version: string;
+  database?: string;
+  gemini_api?: string;
   timestamp: string;
-  database_connected: boolean;
+  error?: string;
+}
+
+export interface DataSummaryResponse {
+  total_transactions: number;
+  total_invoices: number;
+  mpesa_transactions: number;
+  pending_invoices: number;
+  total_revenue: string;
+  pending_amount: string;
 }
 
 // AI API Client Class
@@ -102,6 +111,20 @@ export class AIFinancialInsightsClient {
   // Get cash flow analysis
   async getCashFlowAnalysis(): Promise<AIResponse> {
     return this.askQuestion("Analyze my cash flow and provide insights.");
+  }
+
+  // Get data summary
+  async getDataSummary(): Promise<DataSummaryResponse> {
+    // For now, return mock data since we don't have a specific endpoint
+    // This can be replaced with an actual backend endpoint later
+    return {
+      total_transactions: 0,
+      total_invoices: 0,
+      mpesa_transactions: 0,
+      pending_invoices: 0,
+      total_revenue: "KES 0",
+      pending_amount: "KES 0"
+    };
   }
 }
 
