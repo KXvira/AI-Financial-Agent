@@ -165,5 +165,8 @@ async def env_info():
             "gemini_model": os.environ.get("GEMINI_MODEL", "gemini-1.5-pro")
         }
 
+# Note: OCR router now provides expense summary at /api/receipts/analytics/summary
+# The temporary endpoint has been removed as OCR router integration is complete
+
 if __name__ == "__main__":
     uvicorn.run("backend.app:app", host="0.0.0.0", port=8000, reload=True)

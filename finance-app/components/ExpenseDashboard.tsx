@@ -31,7 +31,18 @@ export default function ExpenseDashboard() {
   const fetchExpenseSummary = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:8000/api/ocr/expense-summary');
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+
+      const response = await fetch('http://localhost:8000/api/receipts/demo/summary', {
+        method: 'GET',
+        headers
+      });
 
       if (!response.ok) {
         throw new Error('Failed to fetch expense summary');

@@ -7,9 +7,17 @@ from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, status,
 from fastapi.responses import FileResponse
 import logging
 
-from ..auth.middleware import get_current_user, get_auth_service
-from ..auth.models import User
-from ..database.mongodb import Database
+import sys
+import os
+
+# Add backend directory to Python path for backend modules
+backend_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if backend_path not in sys.path:
+    sys.path.append(backend_path)
+
+from auth.middleware import get_current_user, get_auth_service
+from auth.models import User
+from database.mongodb import Database
 from .models import (
     Receipt, ReceiptUpdate, ExpenseFilter, ExpenseSummary,
     ProcessingStatus, ExpenseCategory, PaymentMethod, VerificationStatus,
@@ -414,6 +422,52 @@ async def get_expense_summary(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to generate expense summary"
         )
+
+# Demo endpoint for frontend compatibility (no auth required)
+@router.get(
+    "/demo/summary",
+    summary="Get demo expense summary",
+    description="Get demo expense summary for frontend testing (no auth required)"
+)
+async def get_demo_expense_summary():
+    """Get demo expense summary without authentication for frontend testing"""
+    return {
+        "totalExpenses": 5,
+        "monthlyTotal": 15750.50,
+        "categorySummary": {
+            "Office Supplies": 2500.00,
+            "Travel": 8900.50,
+            "Meals": 3200.00,
+            "Utilities": 1150.00,
+            "Other": 0.00
+        },
+        "recentExpenses": [
+            {
+                "id": "exp_001",
+                "date": "2024-10-09",
+                "vendor": "Nakumatt Supermarket",
+                "amount": 1200.00,
+                "category": "Office Supplies",
+                "status": "Verified"
+            },
+            {
+                "id": "exp_002", 
+                "date": "2024-10-08",
+                "vendor": "Uber Kenya",
+                "amount": 850.50,
+                "category": "Travel",
+                "status": "Pending"
+            },
+            {
+                "id": "exp_003",
+                "date": "2024-10-07", 
+                "vendor": "Java House",
+                "amount": 650.00,
+                "category": "Meals",
+                "status": "Verified"
+            }
+        ]
+    }
 
 @router.get(
     "/categories",

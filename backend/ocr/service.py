@@ -3,12 +3,22 @@ OCR Service - Orchestrates receipt processing pipeline
 """
 import asyncio
 import logging
+import sys
+import os
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 from pathlib import Path
 
-from ..database.mongodb import Database
-from ..ai_agent.gemini.service import GeminiService
+# Add root directory to Python path for ai_agent imports
+sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
+
+# Add backend directory to path for backend modules
+backend_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if backend_path not in sys.path:
+    sys.path.append(backend_path)
+
+from database.mongodb import Database
+from ai_agent.gemini.service import GeminiService
 from .models import (
     Receipt, ReceiptCreate, ReceiptUpdate, OCRResult, 
     ProcessingStatus, ExpenseCategory, PaymentMethod,
