@@ -5,10 +5,10 @@ const API_BASE_URL = 'http://localhost:8000';
 
 // API Response Types
 export interface AIResponse {
-  response: string;
-  confidence: number;
-  sources: string[];
-  timestamp: string;
+  answer: string;
+  confidence?: number;
+  sources?: string[];
+  timestamp?: string;
 }
 
 export interface HealthCheckResponse {

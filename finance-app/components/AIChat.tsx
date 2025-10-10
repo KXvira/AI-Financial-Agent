@@ -79,11 +79,11 @@ export default function AIChat() {
       
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
-        content: response.response,
+        content: response.answer,
         sender: 'ai',
         timestamp: new Date(),
-        confidence: response.confidence,
-        insights: response.insights,
+        confidence: response.confidence || 0.8,
+        insights: response.sources || [],
       };
 
       setMessages(prev => [...prev, aiMessage]);

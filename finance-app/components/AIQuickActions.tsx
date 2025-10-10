@@ -122,8 +122,8 @@ export default function AIQuickActions() {
                   <div className="flex-1">
                     <h4 className="font-semibold text-gray-800">{action.title}</h4>
                     <p className="text-sm text-gray-600">
-                      Confidence: {Math.round(result.confidence * 100)}% • 
-                      {new Date(result.metadata.timestamp).toLocaleString()}
+                      {result.confidence ? `Confidence: ${Math.round(result.confidence * 100)}%` : 'AI Analysis'} • 
+                      {result.timestamp ? new Date(result.timestamp).toLocaleString() : new Date().toLocaleString()}
                     </p>
                   </div>
                   <button
@@ -140,17 +140,17 @@ export default function AIQuickActions() {
                 
                 <div className="prose max-w-none">
                   <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
-                    {result.response}
+                    {result.answer}
                   </p>
                 </div>
                 
-                {result.insights && result.insights.length > 0 && (
+                {result.sources && result.sources.length > 0 && (
                   <div className="mt-4 p-4 bg-blue-50 rounded-lg">
-                    <h5 className="font-medium text-blue-900 mb-2">💡 Key Insights:</h5>
+                    <h5 className="font-medium text-blue-900 mb-2">� Data Sources:</h5>
                     <ul className="space-y-1">
-                      {result.insights.map((insight, idx) => (
+                      {result.sources.map((source, idx) => (
                         <li key={idx} className="text-sm text-blue-800">
-                          • {insight}
+                          • {source}
                         </li>
                       ))}
                     </ul>

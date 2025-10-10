@@ -39,7 +39,7 @@ class AIInsightsConfig:
     def __init__(self):
         # Database configuration
         self.mongo_uri = os.environ.get("MONGO_URI", "mongodb://localhost:27017")
-        self.database_name = os.environ.get("DATABASE_NAME", "kenya_fintech_suite")
+        self.database_name = os.environ.get("MONGO_DB", "financial_agent")
         
         # Gemini API configuration
         self.gemini_api_key = os.environ.get("GEMINI_API_KEY", "your-api-key")
@@ -109,6 +109,9 @@ class FinancialRAGService:
         try:
             context_parts = []
             
+            # Skip analytics_cache for now and go directly to transactions/invoices
+            logger.info("Retrieving financial context from database...")
+            
             # Access analytics_cache collection for key metrics
             analytics_cache = self.db.analytics_cache
             
@@ -145,23 +148,41 @@ class FinancialRAGService:
                     amount = doc.get("value", 0)
                     context_parts.append(f"- {category}: {amount:,.2f} KES")
             
-            # Get transaction summary if no analytics cache
-            if not context_parts:
-                # Fallback to direct transaction data
-                recent_transactions = list(self.db.transactions.find({
-                    "timestamp": {"$gte": datetime.now() - timedelta(days=30)}
-                }).limit(50))
-                
-                if recent_transactions:
+            # Get transaction summary (skip analytics cache and go directly to transactions)
+            logger.info("Looking for recent transactions...")
+            recent_transactions = list(self.db.transactions.find({
+                "request_timestamp": {"$gte": datetime.now() - timedelta(days=30)}
+            }).limit(50))
+            logger.info(f"Found {len(recent_transactions)} recent transactions")
+            
+            if recent_transactions:
                     total_amount = sum(t.get("amount", 0) for t in recent_transactions)
+                    completed_amount = sum(t.get("amount", 0) for t in recent_transactions if t.get("status") == "completed")
                     context_parts.append(f"Recent Transactions (Last 30 days):")
                     context_parts.append(f"- Total transactions: {len(recent_transactions)}")
                     context_parts.append(f"- Total amount: {total_amount:,.2f} KES")
+                    context_parts.append(f"- Completed amount: {completed_amount:,.2f} KES")
                     
-                    # Group by payment method
-                    mpesa_count = len([t for t in recent_transactions if t.get("payment_method") == "mpesa"])
+                    # Group by gateway (payment method)
+                    mpesa_count = len([t for t in recent_transactions if t.get("gateway") == "mpesa"])
                     if mpesa_count > 0:
                         context_parts.append(f"- M-Pesa transactions: {mpesa_count}")
+                        
+                    # Add invoice data
+                    recent_invoices = list(self.db.invoices.find({
+                        "date_issued": {"$gte": datetime.now() - timedelta(days=30)}
+                    }).limit(20))
+                    
+                    if recent_invoices:
+                        invoice_total = sum(inv.get("total_amount", 0) for inv in recent_invoices)
+                        paid_invoices = len([inv for inv in recent_invoices if inv.get("status") == "paid"])
+                        pending_invoices = len([inv for inv in recent_invoices if inv.get("status") in ["sent", "overdue"]])
+                        
+                        context_parts.append(f"\nRecent Invoices (Last 30 days):")
+                        context_parts.append(f"- Total invoices: {len(recent_invoices)}")
+                        context_parts.append(f"- Total invoice value: {invoice_total:,.2f} KES")
+                        context_parts.append(f"- Paid invoices: {paid_invoices}")
+                        context_parts.append(f"- Pending invoices: {pending_invoices}")
             
             # Join all context parts
             if context_parts:
