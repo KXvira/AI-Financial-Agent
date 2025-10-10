@@ -3,7 +3,7 @@
 # Frontend Authentication Integration Test Script
 # Tests the complete authentication flow end-to-end
 
-echo "🚀 FinTrack Authentication Integration Test"
+echo "🚀 Fin Guard Authentication Integration Test"
 echo "=========================================="
 
 # Colors for output
@@ -152,7 +152,7 @@ echo -e "${BLUE}🧪 Testing Frontend Integration${NC}"
 # Test frontend pages
 echo -n "Testing homepage... "
 HOME_RESPONSE=$(curl -s http://localhost:3000)
-if echo "$HOME_RESPONSE" | grep -q "FinTrack"; then
+if echo "$HOME_RESPONSE" | grep -q "Fin Guard"; then
     echo -e "${GREEN}✅ Homepage loads${NC}"
 else
     echo -e "${RED}❌ Homepage failed${NC}"

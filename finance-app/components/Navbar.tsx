@@ -25,7 +25,7 @@ export default function Navbar() {
           {/* Logo */}
           <div className="flex items-center">
             <Link href="/" className="font-bold text-xl text-blue-600 hover:text-blue-700">
-              FinTrack
+              Fin Guard
             </Link>
           </div>
 

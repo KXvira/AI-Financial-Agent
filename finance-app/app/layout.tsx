@@ -1,14 +1,15 @@
 // app/layout.tsx
 //Root page
+import type { Metadata } from 'next';
 import './globals.css';
 import { AuthProvider } from '../contexts/AuthContext';
 import Navbar from '../components/Navbar';
 import ClientOnly from '../components/ClientOnly';
 
-export const metadata = {
-  title: 'FinTrack Dashboard - AI-Powered Financial Management',
-  description: 'Manage your finances with AI-powered insights, M-Pesa integration, and smart expense tracking.',
-};
+export const metadata: Metadata = {
+  title: 'Fin Guard Dashboard - AI-Powered Financial Management',
+  description: 'Comprehensive financial management with AI insights, M-Pesa integration, and advanced analytics',
+}
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

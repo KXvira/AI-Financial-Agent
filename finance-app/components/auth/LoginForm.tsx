@@ -75,7 +75,7 @@ export default function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormPr
       <div className="bg-white rounded-lg shadow-md p-8">
         <div className="text-center mb-8">
           <h2 className="text-2xl font-bold text-gray-900">Welcome Back</h2>
-          <p className="text-gray-600 mt-2">Sign in to your FinTrack account</p>
+          <p className="text-gray-600 mt-2">Sign in to your Fin Guard account</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
