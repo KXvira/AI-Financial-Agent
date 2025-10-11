@@ -8,8 +8,8 @@ from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 
-from backend.database.mongodb import get_database
-from backend.ai_invoice.service import AIInvoiceService
+from database.mongodb import get_database
+from .service import AIInvoiceService
 
 router = APIRouter(prefix="/api/ai-invoice", tags=["AI Invoice"])
 
