@@ -304,6 +304,100 @@ class Database:
         
         return str(result.inserted_id)
     
+    async def create_document(self, collection_name: str, document: Dict[str, Any]) -> str:
+        """
+        Generic method to create a document in any collection
+        
+        Args:
+            collection_name: Name of the collection
+            document: Document data
+            
+        Returns:
+            Document ID
+        """
+        # Generate ID if not present
+        if "_id" not in document and "id" not in document:
+            document["_id"] = str(uuid.uuid4())
+        elif "id" in document and "_id" not in document:
+            document["_id"] = document.pop("id")
+            
+        # Get collection
+        collection = self.db[collection_name]
+        
+        # Insert document
+        result = await collection.insert_one(document)
+        logger.info(f"Created document in {collection_name}: {result.inserted_id}")
+        
+        return str(result.inserted_id)
+    
+    async def find_one(self, collection_name: str, query: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """
+        Generic method to find one document in any collection
+        
+        Args:
+            collection_name: Name of the collection
+            query: Query filter
+            
+        Returns:
+            Document data or None
+        """
+        collection = self.db[collection_name]
+        result = await collection.find_one(query)
+        
+        if result:
+            # Convert ObjectId to string for id field
+            if "_id" in result:
+                result["id"] = str(result.pop("_id"))
+            
+            return result
+        else:
+            return None
+    
+    def find(self, collection_name: str, query: Dict[str, Any]):
+        """
+        Generic method to find multiple documents in any collection
+        
+        Args:
+            collection_name: Name of the collection
+            query: Query filter
+            
+        Returns:
+            Async cursor
+        """
+        collection = self.db[collection_name]
+        return collection.find(query)
+    
+    async def update_document(self, collection_name: str, document_id: str, update_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """
+        Generic method to update a document in any collection
+        
+        Args:
+            collection_name: Name of the collection
+            document_id: Document ID
+            update_data: Update data
+            
+        Returns:
+            Updated document
+        """
+        collection = self.db[collection_name]
+        
+        result = await collection.find_one_and_update(
+            {"_id": document_id},
+            {"$set": update_data},
+            return_document=ReturnDocument.AFTER
+        )
+        
+        if result:
+            # Convert ObjectId to string for id field
+            if "_id" in result:
+                result["id"] = str(result.pop("_id"))
+            
+            logger.info(f"Updated document in {collection_name}: {document_id}")
+            return result
+        else:
+            logger.error(f"Document not found in {collection_name}: {document_id}")
+            return None
+    
     async def close(self):
         """Close the database connection"""
         if self.client:

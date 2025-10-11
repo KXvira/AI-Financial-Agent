@@ -25,6 +25,7 @@ from .models import (
     ExpenseFilter, ExpenseSummary, VerificationStatus
 )
 from .processor import ReceiptProcessor
+from .enhanced_processor import EnhancedReceiptProcessor
 from .uploader import FileUploader
 
 logger = logging.getLogger("financial-agent.ocr.service")
@@ -36,10 +37,13 @@ class OCRService:
         self.db = db
         self.ai_service = ai_service or GeminiService()
         self.processor = ReceiptProcessor()
+        # Phase 2: Use enhanced processor with multi-engine OCR
+        self.enhanced_processor = EnhancedReceiptProcessor()
         self.uploader = FileUploader()
         
         # Collections
         self.receipts_collection = "receipts"
+        self.ocr_results_collection = "ocr_results"  # Phase 3: Store OCR results separately
         
     async def create_receipt_record(
         self, 
@@ -72,6 +76,55 @@ class OCRService:
             logger.error(f"Failed to create receipt record: {str(e)}")
             raise Exception(f"Failed to create receipt record: {str(e)}")
     
+    async def save_ocr_result(self, image_path: str, ocr_result) -> str:
+        """
+        Phase 3: Save OCR processing result to database
+        
+        Args:
+            image_path: Path to the processed image
+            ocr_result: Phase2OCRResult from enhanced processor
+            
+        Returns:
+            str: ID of the saved OCR result document
+        """
+        try:
+            ocr_doc = {
+                "image_path": image_path,
+                "status": ocr_result.status.value if hasattr(ocr_result.status, 'value') else str(ocr_result.status),
+                "engine": ocr_result.engine,
+                "confidence": ocr_result.confidence,
+                "processing_time": ocr_result.processing_time,
+                "text": ocr_result.text,
+                "structured_data": ocr_result.structured_data or {},
+                "error": ocr_result.error,
+                "created_at": datetime.utcnow()
+            }
+            
+            result = await self.db.create_document(self.ocr_results_collection, ocr_doc)
+            logger.info(f"OCR result saved to database: {result}")
+            return result
+            
+        except Exception as e:
+            logger.error(f"Failed to save OCR result: {str(e)}")
+            raise Exception(f"Failed to save OCR result: {str(e)}")
+    
+    async def get_ocr_result(self, result_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Phase 3: Retrieve OCR result from database
+        
+        Args:
+            result_id: ID of the OCR result document
+            
+        Returns:
+            Dict containing OCR result data or None if not found
+        """
+        try:
+            result = await self.db.find_one(self.ocr_results_collection, {"_id": result_id})
+            return result
+        except Exception as e:
+            logger.error(f"Failed to retrieve OCR result {result_id}: {str(e)}")
+            return None
+    
     async def process_receipt_async(self, receipt_id: str) -> Receipt:
         """Process receipt asynchronously with OCR and AI"""
         try:
@@ -83,24 +136,32 @@ class OCRService:
             # Update status to processing
             await self.update_receipt_status(receipt_id, ProcessingStatus.PROCESSING)
             
-            # Step 1: OCR Processing
+            # Step 1: Phase 2 Enhanced OCR Processing with multi-engine support
             image_path = Path(receipt.file_path)
-            ocr_result = await self.processor.process_receipt(image_path)
+            logger.info(f"Starting Phase 2 OCR processing for receipt: {receipt_id}")
             
-            # Step 2: Parse basic receipt data
-            parsed_data = await self.processor.parse_receipt_data(ocr_result)
+            # Use enhanced processor with Gemini, Tesseract, and EasyOCR
+            ocr_result = await self.enhanced_processor.process_receipt(str(image_path))
             
-            # Step 3: AI-enhanced processing
-            ai_enhanced_data = await self._enhance_with_ai(ocr_result.raw_text, parsed_data)
+            # Phase 3: Save OCR result to database
+            ocr_result_id = await self.save_ocr_result(str(image_path), ocr_result)
+            logger.info(f"OCR result saved with ID: {ocr_result_id}")
+            
+            # Step 2: Use structured data from Phase 2 OCR (already extracted)
+            # Phase 2 enhanced processor provides structured_data directly
+            parsed_data = ocr_result.structured_data or {}
+            
+            # Step 3: AI-enhanced processing with Phase 2 OCR text
+            ai_enhanced_data = await self._enhance_with_ai(ocr_result.text, parsed_data)
             
             # Step 4: Update receipt with processed data
             updated_receipt = await self._update_receipt_with_processed_data(
                 receipt_id, ocr_result, parsed_data, ai_enhanced_data
             )
             
-            # Step 5: Determine final status
+            # Step 5: Determine final status based on Phase 2 confidence
             final_status = ProcessingStatus.COMPLETED
-            if ocr_result.confidence_score < 0.7:
+            if ocr_result.confidence < 0.7:
                 final_status = ProcessingStatus.NEEDS_REVIEW
             
             await self.update_receipt_status(receipt_id, final_status)
@@ -196,8 +257,12 @@ class OCRService:
     ) -> Receipt:
         """Update receipt with all processed data"""
         try:
+            # Convert Phase2OCRResult dataclass to dict
+            from dataclasses import asdict
+            ocr_result_dict = asdict(ocr_result) if hasattr(ocr_result, '__dataclass_fields__') else ocr_result.dict()
+            
             update_data = {
-                'ocr_result': ocr_result.dict(),
+                'ocr_result': ocr_result_dict,
                 'ai_extracted_data': ai_data,
                 'processed_at': datetime.now(),
                 'updated_at': datetime.now()
@@ -252,7 +317,11 @@ class OCRService:
     async def get_receipt(self, receipt_id: str) -> Optional[Receipt]:
         """Get receipt by ID"""
         try:
-            doc = await self.db.find_one(self.receipts_collection, {"id": receipt_id})
+            # Try both _id and id fields for compatibility
+            doc = await self.db.find_one(self.receipts_collection, {"_id": receipt_id})
+            if not doc:
+                doc = await self.db.find_one(self.receipts_collection, {"id": receipt_id})
+            
             if doc:
                 return Receipt(**doc)
             return None

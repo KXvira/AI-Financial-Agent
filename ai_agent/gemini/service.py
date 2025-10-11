@@ -209,6 +209,52 @@ class GeminiService:
         """
         return await self._generate_response(prompt)
     
+    async def analyze_image(self, image_path: str, prompt: str) -> Dict[str, Any]:
+        """
+        Analyze an image using Gemini Vision
+        
+        Args:
+            image_path (str): Path to the image file
+            prompt (str): Text prompt for image analysis
+            
+        Returns:
+            Dict with analysis results
+        """
+        try:
+            if MOCK_MODE:
+                # Return mock analysis for development
+                return {
+                    "success": True,
+                    "analysis": "Mock Gemini Vision analysis - receipt detected with total amount KSH 928.00",
+                    "confidence": 0.85
+                }
+            
+            # Load and prepare image
+            from PIL import Image as PILImage
+            
+            image = PILImage.open(image_path)
+            
+            # Use Gemini 2.0 Flash model for image analysis (supports multimodal)
+            vision_model = genai.GenerativeModel('gemini-2.0-flash')
+            
+            # Generate content with image and prompt
+            response = vision_model.generate_content([prompt, image])
+            
+            return {
+                "success": True,
+                "analysis": response.text,
+                "confidence": 0.9  # Gemini doesn't provide confidence, so we estimate
+            }
+            
+        except Exception as e:
+            logger.error(f"Error in Gemini image analysis: {str(e)}")
+            return {
+                "success": False,
+                "error": str(e),
+                "analysis": "",
+                "confidence": 0.0
+            }
+    
     def _create_reconciliation_prompt(self, payment_data: Dict[str, Any], invoices: List[Dict[str, Any]]) -> str:
         """
         Create a prompt for payment reconciliation
