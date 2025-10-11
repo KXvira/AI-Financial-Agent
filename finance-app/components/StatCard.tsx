@@ -12,7 +12,7 @@ type StatCardProps = {
         <h4 className="text-sm text-gray-500">{title}</h4>
         <p className="text-xl font-bold">{amount}</p>
         <p className={`text-sm ${isPositive ? 'text-green-600' : 'text-red-500'}`}>
-          {isPositive ? '+' : ''}{change}
+          {change}
         </p>
       </div>
     );

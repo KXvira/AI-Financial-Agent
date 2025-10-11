@@ -239,7 +239,7 @@ class DashboardService:
             payments = []
             async for doc in cursor:
                 payments.append(RecentPayment(
-                    reference=doc.get('transaction_id', doc.get('_id')),
+                    reference=doc.get('mpesa_reference', doc.get('invoice_number', str(doc.get('_id')))),
                     client=doc.get('customer_name', doc.get('description', 'Unknown')),
                     amount=doc.get('amount', 0.0),
                     currency=doc.get('currency', 'KES'),

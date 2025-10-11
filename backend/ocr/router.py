@@ -423,51 +423,91 @@ async def get_expense_summary(
             detail="Failed to generate expense summary"
         )
 
-# Demo endpoint for frontend compatibility (no auth required)
+# Real expense summary endpoint (no auth required for now)
 @router.get(
     "/demo/summary",
-    summary="Get demo expense summary",
-    description="Get demo expense summary for frontend testing (no auth required)"
+    summary="Get expense summary from database",
+    description="Get expense summary from real database (no auth required)"
 )
 async def get_demo_expense_summary():
-    """Get demo expense summary without authentication for frontend testing"""
-    return {
-        "totalExpenses": 5,
-        "monthlyTotal": 15750.50,
-        "categorySummary": {
-            "Office Supplies": 2500.00,
-            "Travel": 8900.50,
-            "Meals": 3200.00,
-            "Utilities": 1150.00,
-            "Other": 0.00
-        },
-        "recentExpenses": [
-            {
-                "id": "exp_001",
-                "date": "2024-10-09",
-                "vendor": "Nakumatt Supermarket",
-                "amount": 1200.00,
-                "category": "Office Supplies",
-                "status": "Verified"
-            },
-            {
-                "id": "exp_002", 
-                "date": "2024-10-08",
-                "vendor": "Uber Kenya",
-                "amount": 850.50,
-                "category": "Travel",
-                "status": "Pending"
-            },
-            {
-                "id": "exp_003",
-                "date": "2024-10-07", 
-                "vendor": "Java House",
-                "amount": 650.00,
-                "category": "Meals",
-                "status": "Verified"
-            }
-        ]
-    }
+    """Get expense summary from database without authentication"""
+    try:
+        from database.mongodb import Database
+        from datetime import datetime, timedelta
+        
+        db_instance = Database.get_instance()
+        db = db_instance.db
+        
+        # Get receipts collection
+        receipts = db.receipts
+        
+        # Calculate date range (last 30 days)
+        end_date = datetime.utcnow()
+        start_date = end_date - timedelta(days=30)
+        
+        # Get all receipts for calculations
+        cursor = receipts.find({"status": "processed"})
+        
+        total_expenses_amount = 0.0
+        total_receipts_count = 0
+        monthly_total = 0.0
+        category_summary = {}
+        recent_expenses = []
+        
+        async for receipt in cursor:
+            total_receipts_count += 1
+            ocr_data = receipt.get('ocr_data', {})
+            extracted_data = ocr_data.get('extracted_data', {})
+            
+            amount = extracted_data.get('total_amount', 0.0)
+            category = extracted_data.get('category', receipt.get('category', 'Other'))
+            created_at = receipt.get('created_at', datetime.utcnow())
+            
+            # Add to total expenses amount
+            total_expenses_amount += amount
+            
+            # Add to monthly if within date range
+            if created_at >= start_date:
+                monthly_total += amount
+            
+            # Add to category summary
+            if category not in category_summary:
+                category_summary[category] = 0.0
+            category_summary[category] += amount
+        
+        # Get recent 10 receipts for the table
+        cursor = receipts.find({"status": "processed"}).sort("created_at", -1).limit(10)
+        
+        async for receipt in cursor:
+            ocr_data = receipt.get('ocr_data', {})
+            extracted_data = ocr_data.get('extracted_data', {})
+            
+            recent_expenses.append({
+                "id": str(receipt.get('_id')),
+                "date": receipt.get('created_at', datetime.utcnow()).strftime("%Y-%m-%d"),
+                "vendor": extracted_data.get('vendor_name', 'Unknown Vendor'),
+                "amount": extracted_data.get('total_amount', 0.0),
+                "category": extracted_data.get('category', receipt.get('category', 'Other')),
+                "status": "Verified" if receipt.get('status') == 'processed' else "Pending"
+            })
+        
+        return {
+            "totalExpenses": round(total_expenses_amount, 2),
+            "totalReceipts": total_receipts_count,
+            "monthlyTotal": round(monthly_total, 2),
+            "categorySummary": {k: round(v, 2) for k, v in category_summary.items()},
+            "recentExpenses": recent_expenses
+        }
+        
+    except Exception as e:
+        logger.error(f"Error fetching expense summary: {str(e)}")
+        # Return empty data structure instead of error
+        return {
+            "totalExpenses": 0,
+            "monthlyTotal": 0.0,
+            "categorySummary": {},
+            "recentExpenses": []
+        }
 
 @router.get(
     "/categories",

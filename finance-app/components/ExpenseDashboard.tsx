@@ -14,6 +14,7 @@ interface ExpenseData {
 
 interface ExpenseSummary {
   totalExpenses: number;
+  totalReceipts?: number;
   monthlyTotal: number;
   categorySummary: { [key: string]: number };
   recentExpenses: ExpenseData[];
@@ -129,7 +130,7 @@ export default function ExpenseDashboard() {
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-500">Total Receipts</p>
               <p className="text-2xl font-semibold text-gray-900">
-                {summary.recentExpenses.length}
+                {summary.totalReceipts || summary.recentExpenses.length}
               </p>
             </div>
           </div>
