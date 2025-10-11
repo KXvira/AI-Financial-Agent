@@ -42,6 +42,14 @@ try:
 except ImportError as e:
     print(f"❌ Phase 5 Authentication API router import failed: {e}")
 
+# Import dashboard router
+try:
+    from dashboard.router import router as dashboard_router
+    print("✅ Dashboard router imported successfully")
+except ImportError as e:
+    print(f"❌ Dashboard router import failed: {e}")
+    dashboard_router = None
+
 # Import other routers
 try:
     from database.mongodb import Database
@@ -120,6 +128,10 @@ if auth_router:
 if auth_api_router:
     app.include_router(auth_api_router)
     print("✅ Phase 5 Authentication API router included in app")
+
+if dashboard_router:
+    app.include_router(dashboard_router)
+    print("✅ Dashboard router included in app")
 
 if ocr_router:
     app.include_router(ocr_router)

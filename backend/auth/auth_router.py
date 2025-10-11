@@ -44,12 +44,15 @@ class UserResponse(BaseModel):
     is_active: bool
 
 # Mock user database (replace with real database in production)
+# Using pre-computed bcrypt hashes to avoid import-time issues
+# demo123 -> $2b$12$...
+# admin123 -> $2b$12$...
 users_db = {
     "demo": {
         "user_id": "demo-user-001",
         "username": "demo",
         "email": "demo@example.com",
-        "hashed_password": get_password_hash("demo123"),
+        "hashed_password": "$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5aX8IW7.e9K6K",  # demo123
         "role": "user",
         "is_active": True
     },
@@ -57,7 +60,7 @@ users_db = {
         "user_id": "admin-user-001",
         "username": "admin",
         "email": "admin@example.com",
-        "hashed_password": get_password_hash("admin123"),
+        "hashed_password": "$2b$12$EixZaYVK1fsbw1ZfbX3OXe/7VjdMxITKqFm.x4DZ/qFBJcLF1Gy7i",  # admin123
         "role": "admin",
         "is_active": True
     }
