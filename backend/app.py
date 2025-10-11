@@ -66,6 +66,14 @@ except ImportError as e:
     print(f"❌ Payments router import failed: {e}")
     payments_router = None
 
+# Import customers router
+try:
+    from customers.router import router as customers_router
+    print("✅ Customers router imported successfully")
+except ImportError as e:
+    print(f"❌ Customers router import failed: {e}")
+    customers_router = None
+
 # Import other routers
 try:
     from database.mongodb import Database
@@ -156,6 +164,10 @@ if invoices_router:
 if payments_router:
     app.include_router(payments_router)
     print("✅ Payments router included in app")
+
+if customers_router:
+    app.include_router(customers_router)
+    print("✅ Customers router included in app")
 
 if ocr_router:
     app.include_router(ocr_router)
