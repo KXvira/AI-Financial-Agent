@@ -21,7 +21,9 @@ except ImportError:
 
 # Import application modules individually
 auth_router = None
+auth_api_router = None  # Phase 5 Authentication API
 ocr_router = None
+ocr_api_router = None  # Phase 4 OCR API
 mpesa_router = None
 reconciliation_router = None
 ai_insights_router = None
@@ -33,6 +35,12 @@ try:
     print("✅ Auth router imported successfully")
 except ImportError as e:
     print(f"❌ Auth router import failed: {e}")
+
+try:
+    from auth.auth_router import router as auth_api_router
+    print("✅ Phase 5 Authentication API router imported successfully")
+except ImportError as e:
+    print(f"❌ Phase 5 Authentication API router import failed: {e}")
 
 # Import other routers
 try:
@@ -46,6 +54,12 @@ try:
     print("✅ OCR router imported successfully")
 except ImportError as e:
     print(f"❌ OCR router import failed: {e}")
+
+try:
+    from ocr.api_router import router as ocr_api_router
+    print("✅ Phase 4 OCR API router imported successfully")
+except ImportError as e:
+    print(f"❌ Phase 4 OCR API router import failed: {e}")
 
 try:
     from mpesa.router import router as mpesa_router
@@ -103,9 +117,17 @@ if auth_router:
     app.include_router(auth_router)
     print("✅ Auth router included in app")
 
+if auth_api_router:
+    app.include_router(auth_api_router)
+    print("✅ Phase 5 Authentication API router included in app")
+
 if ocr_router:
     app.include_router(ocr_router)
     print("✅ OCR router included in app")
+
+if ocr_api_router:
+    app.include_router(ocr_api_router)
+    print("✅ Phase 4 OCR API router included in app")
 
 if mpesa_router:
     app.include_router(mpesa_router)

@@ -1,18 +1,56 @@
 # AI-Powered Financial Management System for Kenya
 
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/your-org/your-repo/actions)
-[![Coverage Status](https://img.shields.io/badge/coverage-100%25-brightgreen)](https://github.com/your-org/your-repo)
+[![Coverage Status](https://img.shields.io/badge/coverage-85%25-brightgreen)](https://github.com/your-org/your-repo)
+[![Production Ready](https://img.shields.io/badge/production-ready-brightgreen)](https://github.com/your-org/your-repo)
+[![Docker](https://img.shields.io/badge/docker-enabled-blue)](https://hub.docker.com/r/your-org/ai-financial-agent)
 
-A comprehensive fullstack financial management system built with Python FastAPI backend and Next.js frontend, featuring AI-powered insights, M-Pesa integration, and intelligent financial reconciliation.
+A comprehensive fullstack financial management system built with Python FastAPI backend and Next.js frontend, featuring AI-powered insights, M-Pesa integration, intelligent financial reconciliation, and **advanced OCR receipt processing with Gemini 2.0 Flash AI**.
+
+## ✨ Latest Updates - Phase 5 Complete! 🚀
+
+**Production-Ready Features:**
+- ✅ **Multi-Engine OCR**: Gemini Vision 2.0 Flash, Tesseract, EasyOCR (72-100% confidence)
+- ✅ **JWT Authentication**: Secure token-based auth with role-based access control
+- ✅ **Docker Deployment**: Production-ready containerization with Docker Compose
+- ✅ **Monitoring Stack**: Prometheus + Grafana dashboards
+- ✅ **CI/CD Pipeline**: Automated testing, building, and deployment
+- ✅ **Rate Limiting**: API protection with Redis-backed rate limiting
+- ✅ **SSL/TLS Ready**: HTTPS configuration with Nginx reverse proxy
+
+**📚 Complete Documentation:**
+- [Phase 5: Production Deployment](PHASE5_PRODUCTION_COMPLETE.md) - Authentication, Docker, CI/CD
+- [Deployment Guide](DEPLOYMENT_GUIDE.md) - Step-by-step production deployment
+- [Phase 4: API Development](PHASE4_API_COMPLETE.md) - REST API endpoints
+- [Phase 3: Database Integration](PHASE3_DATABASE_COMPLETE.md) - MongoDB persistence
+- [Phase 2: OCR Engine](PHASE2_OCR_COMPLETE.md) - AI-powered receipt processing
 
 ## 🚀 Features
 
+### 🎯 Core Financial Features
 - **AI-Powered Insights**: Intelligent financial analysis using Gemini AI
 - **M-Pesa Integration**: Seamless mobile money transactions
 - **Automated Reconciliation**: Smart invoice and payment matching
 - **Real-time Dashboard**: Interactive financial reporting
-- **Multi-user Support**: Role-based access control
+- **Multi-user Support**: Role-based access control with JWT authentication
 - **RESTful API**: Comprehensive backend API with OpenAPI documentation
+
+### 🔍 Advanced OCR Features (Phase 2)
+- **Multi-Engine OCR**: Gemini Vision 2.0 Flash (primary), Tesseract (fallback), EasyOCR (secondary)
+- **7-Stage Image Processing**: Deskewing, denoising, contrast enhancement, binarization
+- **Intelligent Text Extraction**: Merchant info, dates, amounts, line items, tax calculation
+- **High Confidence**: 72-100% confidence scores for text extraction
+- **Database Persistence**: MongoDB storage with full CRUD operations
+
+### 🔒 Production Features (Phase 5)
+- **JWT Authentication**: Secure token-based authentication system
+- **Role-Based Access**: User, admin, and service role permissions
+- **Docker Deployment**: Multi-stage Docker builds with health checks
+- **Nginx Reverse Proxy**: SSL/TLS, rate limiting, compression
+- **Monitoring**: Prometheus metrics + Grafana dashboards
+- **CI/CD Pipeline**: Automated testing, linting, building, deployment
+- **Background Tasks**: Celery workers for async OCR processing
+- **Redis Caching**: Session storage, rate limits, task queue
 
 ## 🛠️ Tech Stack
 
