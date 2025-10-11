@@ -74,6 +74,14 @@ except ImportError as e:
     print(f"❌ Customers router import failed: {e}")
     customers_router = None
 
+# Import AI invoice router
+try:
+    from ai_invoice.router import router as ai_invoice_router
+    print("✅ AI Invoice router imported successfully")
+except ImportError as e:
+    print(f"❌ AI Invoice router import failed: {e}")
+    ai_invoice_router = None
+
 # Import other routers
 try:
     from database.mongodb import Database
@@ -168,6 +176,10 @@ if payments_router:
 if customers_router:
     app.include_router(customers_router)
     print("✅ Customers router included in app")
+
+if ai_invoice_router:
+    app.include_router(ai_invoice_router)
+    print("✅ AI Invoice router included in app")
 
 if ocr_router:
     app.include_router(ocr_router)

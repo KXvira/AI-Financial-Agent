@@ -242,12 +242,12 @@ export default function CustomerDetailPage() {
               >
                 Edit Customer
               </Link>
-              <button
-                onClick={() => {/* TODO: Implement AI invoice generation */}}
+              <Link
+                href={`/invoices/ai-generate?customer_id=${customerId}&customer_name=${encodeURIComponent(customer.name)}`}
                 className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
               >
-                Generate Invoice (AI)
-              </button>
+                🤖 Generate Invoice (AI)
+              </Link>
             </div>
           </div>
         </div>
