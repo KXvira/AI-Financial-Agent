@@ -26,6 +26,7 @@ venv/
 env/
 ENV/
 venv-fresh/
+venv-ocr/
 .env
 .venv
 venv-new/
