@@ -28,4 +28,4 @@ fi
 # Start Celery worker
 echo "🔄 Starting Celery worker..."
 cd backend
-celery -A celery_app worker --loglevel=info --queues=ocr_processing,batch_processing --concurrency=2
+cd /home/munga/Desktop/AI-Financial-Agent && PYTHONPATH=/home/munga/Desktop/AI-Financial-Agent celery -A backend.celery_app worker --loglevel=INFO --queues=ocr_processing,batch_processing

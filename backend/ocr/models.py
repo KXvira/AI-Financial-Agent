@@ -2,7 +2,7 @@
 OCR Data Models for Receipt Processing and Expense Management
 """
 from typing import List, Optional, Dict, Any
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 from datetime import datetime
 from enum import Enum
 import uuid
@@ -126,13 +126,15 @@ class Receipt(ReceiptBase):
     updated_at: datetime = Field(default_factory=datetime.now)
     processed_at: Optional[datetime] = None
 
-    @validator('total_amount')
+    @field_validator('total_amount')
+    @classmethod
     def validate_positive_amount(cls, v):
         if v < 0:
             raise ValueError('Total amount must be positive')
         return v
 
-    @validator('currency')
+    @field_validator('currency')
+    @classmethod
     def validate_currency(cls, v):
         allowed_currencies = ['KES', 'USD', 'EUR', 'GBP']
         if v not in allowed_currencies:
