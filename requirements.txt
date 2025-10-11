@@ -54,6 +54,11 @@ httpx==0.27.2
 # Production Server
 gunicorn==23.0.0
 
+# Email & PDF
+sendgrid==6.11.0
+reportlab==4.2.5
+weasyprint==62.3
+
 # Utilities
 pytz==2024.2
 python-dateutil==2.9.0.post0

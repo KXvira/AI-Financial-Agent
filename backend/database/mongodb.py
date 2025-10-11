@@ -403,4 +403,12 @@ class Database:
         if self.client:
             self.client.close()
             logger.info("Closed MongoDB connection")
-            
+
+
+# Helper function to get database instance
+def get_database() -> Database:
+    """
+    Get singleton database instance
+    Returns Database object for dependency injection
+    """
+    return Database.get_instance()
