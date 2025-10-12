@@ -8,9 +8,15 @@ from pydantic import BaseModel, Field
 from typing import Dict, List, Optional, Any, Union
 import uvicorn
 import os
+import sys
 import logging
 from datetime import datetime
 import json
+
+# Add backend directory to Python path for imports
+backend_dir = os.path.dirname(os.path.abspath(__file__))
+if backend_dir not in sys.path:
+    sys.path.insert(0, backend_dir)
 
 # Try to import dotenv for environment variables
 try:
@@ -127,6 +133,14 @@ try:
 except ImportError as e:
     print(f"❌ AI Insights router import failed: {e}")
 
+# Import reporting router
+try:
+    from reporting.router import router as reporting_router
+    print("✅ Reporting router imported successfully")
+except ImportError as e:
+    print(f"❌ Reporting router import failed: {e}")
+    reporting_router = None
+
 # Flag to track if all imports were successful
 all_imports_successful = all([
     auth_router is not None,
@@ -212,6 +226,10 @@ if reconciliation_router:
 if ai_insights_router:
     app.include_router(ai_insights_router)
     print("✅ AI Insights router included in app")
+
+if reporting_router:
+    app.include_router(reporting_router)
+    print("✅ Reporting router included in app")
     
 # Initialize database connection and state (if database was imported)
 if Database:

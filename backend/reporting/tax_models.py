@@ -2,7 +2,7 @@
 Data models for Tax Reports
 """
 from pydantic import BaseModel, Field
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 from datetime import datetime
 
 
@@ -101,7 +101,7 @@ class ScheduledReport(BaseModel):
     frequency: str  # 'daily', 'weekly', 'monthly', 'quarterly'
     schedule_time: str  # HH:MM format
     recipients: List[str]
-    parameters: Dict[str, any] = {}
+    parameters: Dict[str, Any] = {}
     enabled: bool = True
     last_run: Optional[str] = None
     next_run: Optional[str] = None
