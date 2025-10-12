@@ -4,16 +4,17 @@ Receipt API Router
 FastAPI endpoints for receipt generation and management.
 """
 
-from fastapi import APIRouter, HTTPException, Depends, Query, Response
-from typing import Optional, List
+from fastapi import APIRouter, HTTPException, Depends, Query, Response, Body
+from typing import Optional, List, Dict, Any
 from datetime import datetime, timedelta
 import os
 
 from .models import (
     Receipt, ReceiptGenerateRequest, ReceiptType, ReceiptStatus,
-    ReceiptListResponse, ReceiptStatistics
+    ReceiptListResponse, ReceiptStatistics, ReceiptTemplate
 )
 from .service import ReceiptService
+from .templates_service import ReceiptTemplateService
 from backend.database.mongodb import get_database, Database
 
 
@@ -23,6 +24,11 @@ router = APIRouter(prefix="/receipts", tags=["receipts"])
 def get_receipt_service(db: Database = Depends(get_database)) -> ReceiptService:
     """Dependency to get receipt service"""
     return ReceiptService(db)
+
+
+def get_template_service(db: Database = Depends(get_database)) -> ReceiptTemplateService:
+    """Dependency to get template service"""
+    return ReceiptTemplateService(db)
 
 
 @router.post("/generate", response_model=Receipt, status_code=201)
@@ -195,30 +201,13 @@ async def email_receipt(
     
     - **email**: Optional email override (uses customer email if not provided)
     """
-    receipt = await service.get_receipt(receipt_id)
-    if not receipt:
-        raise HTTPException(status_code=404, detail="Receipt not found")
-    
-    # Determine email address
-    recipient_email = email or receipt.customer.email
-    if not recipient_email:
-        raise HTTPException(status_code=400, detail="No email address provided")
-    
-    # TODO: Integrate with email service from Phase 4
-    # For now, just log the action
-    await service._log_audit(
-        receipt_id=receipt.id,
-        receipt_number=receipt.receipt_number,
-        action="sent",
-        details={"email": recipient_email}
-    )
-    
-    return {
-        "success": True,
-        "message": f"Receipt sent to {recipient_email}",
-        "receipt_id": receipt.id,
-        "receipt_number": receipt.receipt_number
-    }
+    try:
+        result = await service.send_receipt_email(receipt_id, email)
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error sending email: {str(e)}")
 
 
 @router.get("/statistics/summary", response_model=ReceiptStatistics)
@@ -295,6 +284,30 @@ async def bulk_generate_receipts(
     }
 
 
+@router.post("/bulk-email")
+async def bulk_email_receipts(
+    receipt_ids: List[str] = Body(..., description="List of receipt IDs to email"),
+    email: str = Body(..., description="Recipient email address"),
+    service: ReceiptService = Depends(get_receipt_service)
+):
+    """
+    Send multiple receipts in one email
+    
+    Sends multiple receipt PDFs attached to a single email.
+    Useful for sending monthly statements or multiple transactions.
+    
+    - **receipt_ids**: List of receipt IDs to include
+    - **email**: Recipient email address
+    """
+    try:
+        result = await service.send_bulk_receipts_email(receipt_ids, email)
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error sending bulk email: {str(e)}")
+
+
 @router.get("/verify/{receipt_number}")
 async def verify_receipt(
     receipt_number: str,
@@ -331,3 +344,158 @@ async def verify_receipt(
         "payment_date": receipt.payment_date,
         "status": receipt.status
     }
+
+
+# =============================================================================
+# RECEIPT TEMPLATE ENDPOINTS
+# =============================================================================
+
+@router.get("/templates/", tags=["templates"])
+async def list_templates(
+    page: int = Query(1, ge=1, description="Page number"),
+    page_size: int = Query(20, ge=1, le=100, description="Items per page"),
+    is_active: Optional[bool] = Query(None, description="Filter by active status"),
+    service: ReceiptTemplateService = Depends(get_template_service)
+):
+    """
+    List all receipt templates
+    
+    Returns available templates for receipt customization.
+    """
+    result = await service.list_templates(
+        page=page,
+        page_size=page_size,
+        is_active=is_active
+    )
+    return result
+
+
+@router.post("/templates/", response_model=ReceiptTemplate, status_code=201, tags=["templates"])
+async def create_template(
+    template: ReceiptTemplate,
+    service: ReceiptTemplateService = Depends(get_template_service)
+):
+    """
+    Create a new receipt template
+    
+    Creates a custom receipt template with branding and styling options.
+    """
+    try:
+        created = await service.create_template(template)
+        return created
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error creating template: {str(e)}")
+
+
+@router.get("/templates/{template_id}", response_model=ReceiptTemplate, tags=["templates"])
+async def get_template(
+    template_id: str,
+    service: ReceiptTemplateService = Depends(get_template_service)
+):
+    """
+    Get template by ID
+    
+    Returns template details for customization.
+    """
+    template = await service.get_template(template_id)
+    if not template:
+        raise HTTPException(status_code=404, detail="Template not found")
+    return template
+
+
+@router.put("/templates/{template_id}", response_model=ReceiptTemplate, tags=["templates"])
+async def update_template(
+    template_id: str,
+    updates: Dict[str, Any] = Body(..., description="Fields to update"),
+    service: ReceiptTemplateService = Depends(get_template_service)
+):
+    """
+    Update a receipt template
+    
+    Updates template settings and styling options.
+    """
+    template = await service.update_template(template_id, updates)
+    if not template:
+        raise HTTPException(status_code=404, detail="Template not found")
+    return template
+
+
+@router.delete("/templates/{template_id}", tags=["templates"])
+async def delete_template(
+    template_id: str,
+    service: ReceiptTemplateService = Depends(get_template_service)
+):
+    """
+    Delete a receipt template
+    
+    Soft deletes a template by marking it as inactive.
+    """
+    success = await service.delete_template(template_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Template not found")
+    return {"success": True, "message": "Template deleted successfully"}
+
+
+@router.get("/templates/default/get", response_model=ReceiptTemplate, tags=["templates"])
+async def get_default_template(
+    service: ReceiptTemplateService = Depends(get_template_service)
+):
+    """
+    Get the default receipt template
+    
+    Returns the currently active default template.
+    """
+    template = await service.get_default_template()
+    if not template:
+        raise HTTPException(status_code=404, detail="No default template found")
+    return template
+
+
+@router.post("/templates/{template_id}/set-default", response_model=ReceiptTemplate, tags=["templates"])
+async def set_default_template(
+    template_id: str,
+    service: ReceiptTemplateService = Depends(get_template_service)
+):
+    """
+    Set a template as default
+    
+    Makes this template the default for all new receipts.
+    """
+    template = await service.set_default_template(template_id)
+    if not template:
+        raise HTTPException(status_code=404, detail="Template not found")
+    return template
+
+
+@router.post("/templates/seed/defaults", tags=["templates"])
+async def seed_default_templates(
+    service: ReceiptTemplateService = Depends(get_template_service)
+):
+    """
+    Seed default receipt templates
+    
+    Creates default templates if none exist.
+    """
+    templates = await service.seed_default_templates()
+    return {
+        "success": True,
+        "message": f"Created {len(templates)} default templates" if templates else "Templates already exist",
+        "templates_created": len(templates)
+    }
+
+
+@router.post("/templates/{template_id}/duplicate", response_model=ReceiptTemplate, tags=["templates"])
+async def duplicate_template(
+    template_id: str,
+    new_name: str = Query(..., description="Name for the duplicated template"),
+    service: ReceiptTemplateService = Depends(get_template_service)
+):
+    """
+    Duplicate an existing template
+    
+    Creates a copy of a template with a new name.
+    """
+    template = await service.duplicate_template(template_id, new_name)
+    if not template:
+        raise HTTPException(status_code=404, detail="Template not found")
+    return template

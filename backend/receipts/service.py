@@ -17,7 +17,9 @@ from .models import (
 )
 from .pdf_generator import ReceiptPDFGenerator
 from .qr_generator import QRCodeGenerator
+from .email_templates import get_receipt_email_template, get_receipt_text_template
 from backend.database.mongodb import Database
+from backend.automation.email_service import EmailDeliveryService, EmailMessage
 
 
 class ReceiptService:
@@ -38,6 +40,7 @@ class ReceiptService:
         
         self.pdf_generator = ReceiptPDFGenerator()
         self.qr_generator = QRCodeGenerator()
+        self.email_service = EmailDeliveryService()
         
         # PDF storage path
         self.pdf_storage_path = os.path.join(os.getcwd(), "storage", "receipts")
@@ -132,8 +135,11 @@ class ReceiptService:
         
         # Send email if requested
         if request.send_email and receipt.customer.email:
-            # TODO: Integrate with email service
-            pass
+            try:
+                await self.send_receipt_email(receipt.id, receipt.customer.email)
+            except Exception as e:
+                print(f"Error sending receipt email: {e}")
+                # Don't fail receipt generation if email fails
         
         return receipt
     
@@ -285,6 +291,190 @@ class ReceiptService:
         
         # Get updated receipt
         return await self.get_receipt(receipt_id)
+    
+    async def send_receipt_email(
+        self,
+        receipt_id: str,
+        email: Optional[str] = None,
+        user_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Send receipt via email
+        
+        Args:
+            receipt_id: Receipt ID
+            email: Optional email override (uses customer email if not provided)
+            user_id: Optional user ID for audit
+            
+        Returns:
+            Send status and details
+        """
+        # Get receipt
+        receipt = await self.get_receipt(receipt_id)
+        if not receipt:
+            raise ValueError("Receipt not found")
+        
+        # Determine recipient email
+        recipient_email = email or receipt.customer.email
+        if not recipient_email:
+            raise ValueError("No email address provided")
+        
+        # Check if PDF exists
+        if not receipt.pdf_path or not os.path.exists(receipt.pdf_path):
+            raise ValueError("Receipt PDF not found")
+        
+        # Read PDF file
+        with open(receipt.pdf_path, 'rb') as f:
+            pdf_bytes = f.read()
+        
+        # Prepare email data
+        email_data = {
+            'customer_name': receipt.customer.name,
+            'receipt_number': receipt.receipt_number,
+            'amount': receipt.tax_breakdown.total,
+            'payment_date': receipt.payment_date.strftime("%B %d, %Y %I:%M %p"),
+            'payment_method': receipt.payment_method.value.replace('_', ' ').title(),
+            'business_name': receipt.business_name
+        }
+        
+        # Generate email content
+        html_content = get_receipt_email_template(email_data)
+        text_content = get_receipt_text_template(email_data)
+        
+        # Create email message
+        message = EmailMessage(
+            to=[recipient_email],
+            subject=f"Receipt {receipt.receipt_number} - Payment Confirmation",
+            body_html=html_content,
+            body_text=text_content,
+            attachments=[{
+                'filename': f"{receipt.receipt_number}.pdf",
+                'data': pdf_bytes
+            }]
+        )
+        
+        # Send email
+        result = await self.email_service.send_email(message)
+        
+        # Update receipt status
+        if result.get('success'):
+            update_data = {
+                "status": ReceiptStatus.SENT,
+                "sent_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow()
+            }
+            
+            await self.receipts_collection.update_one(
+                {"_id": ObjectId(receipt_id)},
+                {"$set": update_data}
+            )
+            
+            # Log audit event
+            await self._log_audit(
+                receipt_id=receipt_id,
+                receipt_number=receipt.receipt_number,
+                action="sent",
+                user_id=user_id,
+                details={"email": recipient_email}
+            )
+        
+        return {
+            "success": result.get('success', False),
+            "message": result.get('message', 'Email sent successfully'),
+            "recipient": recipient_email,
+            "receipt_number": receipt.receipt_number
+        }
+    
+    async def send_bulk_receipts_email(
+        self,
+        receipt_ids: List[str],
+        email: str,
+        user_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Send multiple receipts in one email
+        
+        Args:
+            receipt_ids: List of receipt IDs
+            email: Recipient email
+            user_id: Optional user ID for audit
+            
+        Returns:
+            Send status and details
+        """
+        if not receipt_ids:
+            raise ValueError("No receipt IDs provided")
+        
+        # Get all receipts
+        receipts = []
+        pdf_attachments = []
+        total_amount = 0.0
+        
+        for receipt_id in receipt_ids:
+            receipt = await self.get_receipt(receipt_id)
+            if receipt and receipt.pdf_path and os.path.exists(receipt.pdf_path):
+                receipts.append(receipt)
+                total_amount += receipt.tax_breakdown.total
+                
+                # Read PDF
+                with open(receipt.pdf_path, 'rb') as f:
+                    pdf_bytes = f.read()
+                    pdf_attachments.append({
+                        'filename': f"{receipt.receipt_number}.pdf",
+                        'data': pdf_bytes
+                    })
+        
+        if not receipts:
+            raise ValueError("No valid receipts found")
+        
+        # Prepare bulk email data
+        from .email_templates import get_bulk_receipt_email_template
+        
+        email_data = {
+            'customer_name': receipts[0].customer.name,
+            'receipt_count': len(receipts),
+            'total_amount': total_amount,
+            'business_name': receipts[0].business_name,
+            'receipts': [
+                {
+                    'receipt_number': r.receipt_number,
+                    'amount': r.tax_breakdown.total
+                }
+                for r in receipts
+            ]
+        }
+        
+        html_content = get_bulk_receipt_email_template(email_data)
+        
+        # Create email message
+        message = EmailMessage(
+            to=[email],
+            subject=f"Multiple Receipts ({len(receipts)} receipts)",
+            body_html=html_content,
+            attachments=pdf_attachments
+        )
+        
+        # Send email
+        result = await self.email_service.send_email(message)
+        
+        # Update all receipts if sent successfully
+        if result.get('success'):
+            for receipt_id in receipt_ids:
+                await self._log_audit(
+                    receipt_id=receipt_id,
+                    receipt_number="bulk",
+                    action="sent",
+                    user_id=user_id,
+                    details={"email": email, "bulk": True}
+                )
+        
+        return {
+            "success": result.get('success', False),
+            "message": result.get('message', 'Bulk email sent successfully'),
+            "recipient": email,
+            "receipt_count": len(receipts),
+            "total_amount": total_amount
+        }
     
     async def get_statistics(
         self,
