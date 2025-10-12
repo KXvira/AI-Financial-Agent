@@ -26,6 +26,10 @@ class DatabaseConfig:
         self.customers_collection = "customers"
         self.reconciliation_collection = "reconciliation_logs"
         self.analytics_collection = "analytics"
+        
+        # Phase 4: Automation collections
+        self.scheduled_reports_collection = "scheduled_reports"
+        self.report_templates_collection = "report_templates"
 
 class Database:
     """Database operations using Motor for async MongoDB access"""
@@ -49,6 +53,10 @@ class Database:
         self.customers = self.db[self.config.customers_collection]
         self.reconciliation = self.db[self.config.reconciliation_collection]
         self.analytics = self.db[self.config.analytics_collection]
+        
+        # Phase 4: Automation collections
+        self.scheduled_reports = self.db[self.config.scheduled_reports_collection]
+        self.report_templates = self.db[self.config.report_templates_collection]
         
         logger.info(f"Connected to MongoDB: {self.config.mongo_uri}")
     

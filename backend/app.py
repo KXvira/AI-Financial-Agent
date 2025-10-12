@@ -141,6 +141,14 @@ except ImportError as e:
     print(f"❌ Reporting router import failed: {e}")
     reporting_router = None
 
+# Import automation router (Phase 4)
+try:
+    from automation.router import router as automation_router
+    print("✅ Automation router imported successfully")
+except ImportError as e:
+    print(f"❌ Automation router import failed: {e}")
+    automation_router = None
+
 # Flag to track if all imports were successful
 all_imports_successful = all([
     auth_router is not None,
@@ -230,6 +238,10 @@ if ai_insights_router:
 if reporting_router:
     app.include_router(reporting_router)
     print("✅ Reporting router included in app")
+
+if automation_router:
+    app.include_router(automation_router)
+    print("✅ Automation router included in app")
     
 # Initialize database connection and state (if database was imported)
 if Database:

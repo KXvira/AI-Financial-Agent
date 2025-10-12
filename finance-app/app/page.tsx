@@ -123,6 +123,50 @@ function Dashboard() {
         </div>
       </div>
 
+      {/* Automation Widget */}
+      <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg p-6 mb-6 border border-purple-200">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-purple-100 rounded-lg">
+              <svg className="h-5 w-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800">Automation & Real-time</h3>
+              <p className="text-sm text-gray-600">Automated reports, scheduling, and live monitoring</p>
+            </div>
+          </div>
+          <div className="flex space-x-2">
+            <Link 
+              href="/automation"
+              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium"
+            >
+              Explore Automation
+            </Link>
+          </div>
+        </div>
+        
+        <div className="mt-4 grid grid-cols-1 sm:grid-cols-4 gap-4">
+          <div className="bg-white rounded-lg p-4 shadow-sm">
+            <h4 className="font-medium text-gray-700 mb-2">📅 Scheduled Reports</h4>
+            <p className="text-sm text-gray-600">Automate report generation and delivery</p>
+          </div>
+          <div className="bg-white rounded-lg p-4 shadow-sm">
+            <h4 className="font-medium text-gray-700 mb-2">✉️ Email Delivery</h4>
+            <p className="text-sm text-gray-600">Configure SMTP for automated emails</p>
+          </div>
+          <div className="bg-white rounded-lg p-4 shadow-sm">
+            <h4 className="font-medium text-gray-700 mb-2">📄 Templates</h4>
+            <p className="text-sm text-gray-600">Custom report templates</p>
+          </div>
+          <div className="bg-white rounded-lg p-4 shadow-sm">
+            <h4 className="font-medium text-gray-700 mb-2">📡 Real-time</h4>
+            <p className="text-sm text-gray-600">Live dashboard updates</p>
+          </div>
+        </div>
+      </div>
+
       <div className="bg-white shadow-md rounded-lg p-6">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-semibold">Recent Payments</h2>

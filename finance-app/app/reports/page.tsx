@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import Navbar from '@/components/Navbar';
 
 interface ReportType {
   id: string;
@@ -79,8 +78,6 @@ export default function ReportsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
@@ -382,37 +379,6 @@ export default function ReportsPage() {
                   </button>
                 </Link>
               ))}
-            </div>
-
-            {/* Quick Stats */}
-            <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">
-                📈 Quick Stats
-              </h2>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-blue-600">
-                    {reportTypes.length}
-                  </div>
-                  <div className="text-sm text-gray-600">Available Reports</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-green-600">
-                    {categories.length - 1}
-                  </div>
-                  <div className="text-sm text-gray-600">Categories</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-purple-600">4</div>
-                  <div className="text-sm text-gray-600">Export Formats</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-orange-600">
-                    &lt;3s
-                  </div>
-                  <div className="text-sm text-gray-600">Avg Generation</div>
-                </div>
-              </div>
             </div>
 
             {/* Info Banner */}
