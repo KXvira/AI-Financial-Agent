@@ -144,6 +144,37 @@ export default function ReportsPage() {
           <>
             {/* Reports Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+              {/* Trend Analysis Card (Special Card) */}
+              <Link
+                href="/reports/trends"
+                className="bg-gradient-to-br from-purple-500 to-blue-600 rounded-lg shadow-md hover:shadow-xl transition-all transform hover:-translate-y-1 p-6 border border-purple-400 text-white"
+              >
+                <div className="text-4xl mb-4">📈</div>
+                <h3 className="text-xl font-bold mb-2">
+                  Trend Analysis
+                </h3>
+                <p className="text-purple-100 text-sm mb-4">
+                  Analyze revenue and expense trends over time with month-over-month and year-over-year comparisons
+                </p>
+                <div className="space-y-2 mb-4">
+                  <div className="text-xs text-purple-100 flex items-center">
+                    <span className="mr-1">📊</span>
+                    Visual trend charts
+                  </div>
+                  <div className="text-xs text-purple-100 flex items-center">
+                    <span className="mr-1">📅</span>
+                    MoM & YoY comparisons
+                  </div>
+                  <div className="text-xs text-purple-100 flex items-center">
+                    <span className="mr-1">💡</span>
+                    Actionable insights
+                  </div>
+                </div>
+                <button className="mt-4 w-full bg-white text-purple-600 py-2 rounded-lg hover:bg-purple-50 transition-colors font-medium">
+                  View Trends →
+                </button>
+              </Link>
+
               {filteredReports.map(report => (
                 <Link
                   key={report.id}

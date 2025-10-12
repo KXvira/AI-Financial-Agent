@@ -163,3 +163,99 @@ async def get_dashboard_metrics(
         return metrics
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error generating dashboard metrics: {str(e)}")
+
+
+@router.get("/trends/revenue")
+async def get_revenue_trends(
+    period: str = Query("monthly", description="Period: daily, weekly, monthly, quarterly"),
+    months: int = Query(12, description="Number of periods to include", ge=1, le=36),
+    db: Database = Depends(get_database)
+):
+    """
+    Get revenue trend analysis over time
+    
+    Parameters:
+    - **period**: Aggregation period (daily, weekly, monthly, quarterly)
+    - **months**: Number of periods to include (1-36)
+    
+    Returns:
+    - Time series data of revenue
+    - Month-over-month/period-over-period change percentages
+    - Trend direction (up/down/stable)
+    """
+    try:
+        service = ReportingService(db)
+        trends = await service.get_revenue_trends(period, months)
+        return trends
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating revenue trends: {str(e)}")
+
+
+@router.get("/trends/expenses")
+async def get_expense_trends(
+    period: str = Query("monthly", description="Period: daily, weekly, monthly, quarterly"),
+    months: int = Query(12, description="Number of periods to include", ge=1, le=36),
+    db: Database = Depends(get_database)
+):
+    """
+    Get expense trend analysis over time
+    
+    Parameters:
+    - **period**: Aggregation period (daily, weekly, monthly, quarterly)
+    - **months**: Number of periods to include (1-36)
+    
+    Returns:
+    - Time series data of expenses by category
+    - Month-over-month/period-over-period change percentages
+    - Trend direction (up/down/stable)
+    """
+    try:
+        service = ReportingService(db)
+        trends = await service.get_expense_trends(period, months)
+        return trends
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating expense trends: {str(e)}")
+
+
+@router.get("/comparison/mom")
+async def get_month_over_month(
+    db: Database = Depends(get_database)
+):
+    """
+    Get Month-over-Month comparison
+    
+    Compares current month metrics with previous month:
+    - Revenue comparison
+    - Expense comparison
+    - Net income comparison
+    - Invoice metrics comparison
+    - Collection rate comparison
+    """
+    try:
+        service = ReportingService(db)
+        comparison = await service.get_month_over_month_comparison()
+        return comparison
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating MoM comparison: {str(e)}")
+
+
+@router.get("/comparison/yoy")
+async def get_year_over_year(
+    db: Database = Depends(get_database)
+):
+    """
+    Get Year-over-Year comparison
+    
+    Compares current year metrics with previous year:
+    - Revenue comparison
+    - Expense comparison
+    - Net income comparison
+    - Growth rates
+    - Customer acquisition
+    """
+    try:
+        service = ReportingService(db)
+        comparison = await service.get_year_over_year_comparison()
+        return comparison
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating YoY comparison: {str(e)}")

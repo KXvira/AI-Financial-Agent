@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import StatCard from '@/components/StatCard';
+import ReportChart, { prepareChartData } from '@/components/ReportChart';
+import { exportDashboardMetricsExcel, exportToCSV, exportToPDF, formatDataForExport } from '@/utils/exportUtils';
 
 interface DashboardMetrics {
   generated_at: string;
@@ -310,6 +312,168 @@ export default function DashboardMetricsPage() {
               icon="🎯"
               bgColor={metrics.reconciliation_rate >= 90 ? 'bg-green-50' : 'bg-yellow-50'}
             />
+          </div>
+        </div>
+
+        {/* Chart Visualizations */}
+        <div className="mb-8">
+          <h2 className="text-xl font-bold text-gray-900 mb-4">📊 Visual Analytics</h2>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            {/* Revenue vs Expenses vs Net Income */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Financial Overview
+              </h3>
+              <ReportChart
+                type="bar"
+                data={prepareChartData(
+                  ['Revenue', 'Expenses', 'Net Income'],
+                  [{
+                    label: 'Amount',
+                    data: [
+                      metrics.total_revenue,
+                      metrics.total_expenses,
+                      metrics.net_income
+                    ],
+                    backgroundColor: [
+                      'rgba(34, 197, 94, 0.8)',
+                      'rgba(239, 68, 68, 0.8)',
+                      metrics.net_income >= 0 ? 'rgba(59, 130, 246, 0.8)' : 'rgba(239, 68, 68, 0.8)'
+                    ],
+                  }]
+                )}
+                height={300}
+              />
+            </div>
+
+            {/* Invoice Status Distribution */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Invoice Status
+              </h3>
+              <ReportChart
+                type="doughnut"
+                data={prepareChartData(
+                  ['Paid', 'Pending', 'Overdue'],
+                  [{
+                    label: 'Invoices',
+                    data: [
+                      metrics.paid_invoices,
+                      metrics.pending_invoices,
+                      metrics.overdue_invoices
+                    ],
+                  }]
+                )}
+                height={300}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Collection Performance */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Collection Metrics
+              </h3>
+              <ReportChart
+                type="bar"
+                data={prepareChartData(
+                  ['Collection Rate', 'Reconciliation Rate', 'Target (85%)'],
+                  [{
+                    label: 'Percentage',
+                    data: [
+                      metrics.collection_rate,
+                      metrics.reconciliation_rate,
+                      85
+                    ],
+                    backgroundColor: [
+                      metrics.collection_rate >= 85 ? 'rgba(34, 197, 94, 0.8)' : 'rgba(234, 179, 8, 0.8)',
+                      metrics.reconciliation_rate >= 90 ? 'rgba(34, 197, 94, 0.8)' : 'rgba(234, 179, 8, 0.8)',
+                      'rgba(156, 163, 175, 0.3)'
+                    ],
+                  }]
+                )}
+                height={300}
+              />
+            </div>
+
+            {/* Customer Activity */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Customer Base
+              </h3>
+              <ReportChart
+                type="doughnut"
+                data={prepareChartData(
+                  ['Active', 'Inactive'],
+                  [{
+                    label: 'Customers',
+                    data: [
+                      metrics.active_customers,
+                      metrics.total_customers - metrics.active_customers
+                    ],
+                  }]
+                )}
+                height={300}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Export Options */}
+        <div className="bg-white rounded-lg shadow p-6 mb-8">
+          <h3 className="font-semibold text-gray-900 mb-4">Export Dashboard</h3>
+          <div className="flex flex-wrap gap-3">
+            <button 
+              onClick={() => exportDashboardMetricsExcel(metrics)}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+            >
+              📊 Export to Excel
+            </button>
+            <button 
+              onClick={() => {
+                const data = [{
+                  'Total Revenue': metrics.total_revenue,
+                  'Total Expenses': metrics.total_expenses,
+                  'Net Income': metrics.net_income,
+                  'Profit Margin': `${metrics.profit_margin}%`,
+                  'Collection Rate': `${metrics.collection_rate}%`,
+                  'DSO': metrics.dso,
+                  'Total Invoices': metrics.total_invoices,
+                  'Paid': metrics.paid_invoices,
+                  'Pending': metrics.pending_invoices,
+                  'Overdue': metrics.overdue_invoices,
+                  'Total Customers': metrics.total_customers,
+                  'Active Customers': metrics.active_customers,
+                  'Reconciliation Rate': `${metrics.reconciliation_rate}%`
+                }];
+                exportToPDF(
+                  'Dashboard Metrics Summary',
+                  data,
+                  Object.keys(data[0]),
+                  'Dashboard_Metrics.pdf'
+                );
+              }}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+            >
+              📄 Export to PDF
+            </button>
+            <button 
+              onClick={() => {
+                const data = [formatDataForExport(metrics)];
+                exportToCSV(data, 'Dashboard_Metrics');
+              }}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              📋 Export to CSV
+            </button>
+            <button
+              onClick={() => window.print()}
+              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+            >
+              🖨️ Print
+            </button>
           </div>
         </div>
 

@@ -589,3 +589,289 @@ class ReportingService:
             reconciled_transactions=reconciled_transactions,
             reconciliation_rate=round(reconciliation_rate, 1)
         )
+    
+    async def get_revenue_trends(self, period: str = "monthly", months: int = 12) -> Dict[str, Any]:
+        """Get revenue trends over time"""
+        from dateutil.relativedelta import relativedelta
+        
+        end_date = datetime.now()
+        start_date = end_date - relativedelta(months=months)
+        
+        # Aggregate revenue by period
+        pipeline = [
+            {
+                "$match": {
+                    "payment_date": {
+                        "$gte": start_date.strftime("%Y-%m-%d"),
+                        "$lte": end_date.strftime("%Y-%m-%d")
+                    },
+                    "status": "Paid"
+                }
+            },
+            {
+                "$addFields": {
+                    "year": {"$substr": ["$payment_date", 0, 4]},
+                    "month": {"$substr": ["$payment_date", 5, 2]}
+                }
+            },
+            {
+                "$group": {
+                    "_id": {
+                        "year": "$year",
+                        "month": "$month"
+                    },
+                    "revenue": {"$sum": "$amount"},
+                    "invoice_count": {"$sum": 1}
+                }
+            },
+            {
+                "$sort": {"_id.year": 1, "_id.month": 1}
+            }
+        ]
+        
+        results = await self.db.invoices.aggregate(pipeline).to_list(None)
+        
+        # Format results
+        trends = []
+        prev_revenue = None
+        
+        for item in results:
+            period_label = f"{item['_id']['year']}-{item['_id']['month']}"
+            revenue = item['revenue']
+            
+            # Calculate change from previous period
+            change_pct = 0.0
+            if prev_revenue and prev_revenue > 0:
+                change_pct = ((revenue - prev_revenue) / prev_revenue) * 100
+            
+            trends.append({
+                "period": period_label,
+                "revenue": round(revenue, 2),
+                "invoice_count": item['invoice_count'],
+                "change_pct": round(change_pct, 2) if prev_revenue else None,
+                "trend": "up" if change_pct > 5 else "down" if change_pct < -5 else "stable"
+            })
+            
+            prev_revenue = revenue
+        
+        # Calculate overall trend
+        overall_trend = "stable"
+        if len(trends) >= 2:
+            first_revenue = trends[0]['revenue']
+            last_revenue = trends[-1]['revenue']
+            if last_revenue > first_revenue * 1.1:
+                overall_trend = "up"
+            elif last_revenue < first_revenue * 0.9:
+                overall_trend = "down"
+        
+        return {
+            "period": period,
+            "months_included": months,
+            "overall_trend": overall_trend,
+            "data": trends
+        }
+    
+    async def get_expense_trends(self, period: str = "monthly", months: int = 12) -> Dict[str, Any]:
+        """Get expense trends over time"""
+        from dateutil.relativedelta import relativedelta
+        
+        end_date = datetime.now()
+        start_date = end_date - relativedelta(months=months)
+        
+        # Aggregate expenses by period
+        pipeline = [
+            {
+                "$match": {
+                    "transaction_date": {
+                        "$gte": start_date.strftime("%Y-%m-%d"),
+                        "$lte": end_date.strftime("%Y-%m-%d")
+                    },
+                    "type": "expense"
+                }
+            },
+            {
+                "$addFields": {
+                    "year": {"$substr": ["$transaction_date", 0, 4]},
+                    "month": {"$substr": ["$transaction_date", 5, 2]}
+                }
+            },
+            {
+                "$group": {
+                    "_id": {
+                        "year": "$year",
+                        "month": "$month"
+                    },
+                    "expenses": {"$sum": "$amount"},
+                    "transaction_count": {"$sum": 1}
+                }
+            },
+            {
+                "$sort": {"_id.year": 1, "_id.month": 1}
+            }
+        ]
+        
+        results = await self.db.transactions.aggregate(pipeline).to_list(None)
+        
+        # Format results
+        trends = []
+        prev_expenses = None
+        
+        for item in results:
+            period_label = f"{item['_id']['year']}-{item['_id']['month']}"
+            expenses = item['expenses']
+            
+            # Calculate change from previous period
+            change_pct = 0.0
+            if prev_expenses and prev_expenses > 0:
+                change_pct = ((expenses - prev_expenses) / prev_expenses) * 100
+            
+            trends.append({
+                "period": period_label,
+                "expenses": round(expenses, 2),
+                "transaction_count": item['transaction_count'],
+                "change_pct": round(change_pct, 2) if prev_expenses else None,
+                "trend": "up" if change_pct > 5 else "down" if change_pct < -5 else "stable"
+            })
+            
+            prev_expenses = expenses
+        
+        # Calculate overall trend
+        overall_trend = "stable"
+        if len(trends) >= 2:
+            first_expenses = trends[0]['expenses']
+            last_expenses = trends[-1]['expenses']
+            if last_expenses > first_expenses * 1.1:
+                overall_trend = "up"
+            elif last_expenses < first_expenses * 0.9:
+                overall_trend = "down"
+        
+        return {
+            "period": period,
+            "months_included": months,
+            "overall_trend": overall_trend,
+            "data": trends
+        }
+    
+    async def get_month_over_month_comparison(self) -> Dict[str, Any]:
+        """Compare current month metrics with previous month"""
+        from dateutil.relativedelta import relativedelta
+        
+        now = datetime.now()
+        
+        # Current month
+        current_start = datetime(now.year, now.month, 1)
+        current_end = now
+        
+        # Previous month
+        prev_start = (current_start - relativedelta(months=1))
+        prev_end = current_start - timedelta(days=1)
+        
+        async def get_period_metrics(start: datetime, end: datetime):
+            start_str = start.strftime("%Y-%m-%d")
+            end_str = end.strftime("%Y-%m-%d")
+            
+            # Revenue
+            revenue_pipeline = [
+                {"$match": {"payment_date": {"$gte": start_str, "$lte": end_str}, "status": "Paid"}},
+                {"$group": {"_id": None, "total": {"$sum": "$amount"}, "count": {"$sum": 1}}}
+            ]
+            revenue_result = await self.db.invoices.aggregate(revenue_pipeline).to_list(None)
+            revenue = revenue_result[0]['total'] if revenue_result else 0
+            invoice_count = revenue_result[0]['count'] if revenue_result else 0
+            
+            # Expenses
+            expense_pipeline = [
+                {"$match": {"transaction_date": {"$gte": start_str, "$lte": end_str}, "type": "expense"}},
+                {"$group": {"_id": None, "total": {"$sum": "$amount"}, "count": {"$sum": 1}}}
+            ]
+            expense_result = await self.db.transactions.aggregate(expense_pipeline).to_list(None)
+            expenses = expense_result[0]['total'] if expense_result else 0
+            
+            return {
+                "revenue": round(revenue, 2),
+                "expenses": round(expenses, 2),
+                "net_income": round(revenue - expenses, 2),
+                "invoice_count": invoice_count
+            }
+        
+        current = await get_period_metrics(current_start, current_end)
+        previous = await get_period_metrics(prev_start, prev_end)
+        
+        # Calculate changes
+        revenue_change = ((current['revenue'] - previous['revenue']) / previous['revenue'] * 100) if previous['revenue'] > 0 else 0
+        expense_change = ((current['expenses'] - previous['expenses']) / previous['expenses'] * 100) if previous['expenses'] > 0 else 0
+        net_income_change = ((current['net_income'] - previous['net_income']) / abs(previous['net_income']) * 100) if previous['net_income'] != 0 else 0
+        
+        return {
+            "period": "Month-over-Month",
+            "current_month": current_start.strftime("%B %Y"),
+            "previous_month": prev_start.strftime("%B %Y"),
+            "current": current,
+            "previous": previous,
+            "changes": {
+                "revenue_change_pct": round(revenue_change, 2),
+                "expense_change_pct": round(expense_change, 2),
+                "net_income_change_pct": round(net_income_change, 2)
+            }
+        }
+    
+    async def get_year_over_year_comparison(self) -> Dict[str, Any]:
+        """Compare current year metrics with previous year"""
+        now = datetime.now()
+        
+        # Current year
+        current_start = datetime(now.year, 1, 1)
+        current_end = now
+        
+        # Previous year
+        prev_start = datetime(now.year - 1, 1, 1)
+        prev_end = datetime(now.year - 1, now.month, now.day)
+        
+        async def get_period_metrics(start: datetime, end: datetime):
+            start_str = start.strftime("%Y-%m-%d")
+            end_str = end.strftime("%Y-%m-%d")
+            
+            # Revenue
+            revenue_pipeline = [
+                {"$match": {"payment_date": {"$gte": start_str, "$lte": end_str}, "status": "Paid"}},
+                {"$group": {"_id": None, "total": {"$sum": "$amount"}, "count": {"$sum": 1}}}
+            ]
+            revenue_result = await self.db.invoices.aggregate(revenue_pipeline).to_list(None)
+            revenue = revenue_result[0]['total'] if revenue_result else 0
+            invoice_count = revenue_result[0]['count'] if revenue_result else 0
+            
+            # Expenses
+            expense_pipeline = [
+                {"$match": {"transaction_date": {"$gte": start_str, "$lte": end_str}, "type": "expense"}},
+                {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
+            ]
+            expense_result = await self.db.transactions.aggregate(expense_pipeline).to_list(None)
+            expenses = expense_result[0]['total'] if expense_result else 0
+            
+            return {
+                "revenue": round(revenue, 2),
+                "expenses": round(expenses, 2),
+                "net_income": round(revenue - expenses, 2),
+                "invoice_count": invoice_count
+            }
+        
+        current = await get_period_metrics(current_start, current_end)
+        previous = await get_period_metrics(prev_start, prev_end)
+        
+        # Calculate changes
+        revenue_change = ((current['revenue'] - previous['revenue']) / previous['revenue'] * 100) if previous['revenue'] > 0 else 0
+        expense_change = ((current['expenses'] - previous['expenses']) / previous['expenses'] * 100) if previous['expenses'] > 0 else 0
+        net_income_change = ((current['net_income'] - previous['net_income']) / abs(previous['net_income']) * 100) if previous['net_income'] != 0 else 0
+        
+        return {
+            "period": "Year-over-Year",
+            "current_year": current_start.year,
+            "previous_year": prev_start.year,
+            "current": current,
+            "previous": previous,
+            "changes": {
+                "revenue_growth_pct": round(revenue_change, 2),
+                "expense_growth_pct": round(expense_change, 2),
+                "net_income_growth_pct": round(net_income_change, 2)
+            }
+        }

@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
+import ReportChart, { prepareChartData } from '@/components/ReportChart';
+import { exportToExcel, exportToCSV, exportToPDF, formatDataForExport } from '@/utils/exportUtils';
 
 interface Invoice {
   invoice_id: string;
@@ -214,6 +216,52 @@ export default function ARAgingPage() {
               </div>
             </div>
 
+            {/* Chart Visualizations */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+              {/* Aging Buckets Chart */}
+              <div className="bg-white rounded-lg shadow p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                  📊 Aging Distribution
+                </h2>
+                <ReportChart
+                  type="bar"
+                  data={prepareChartData(
+                    report.buckets.map(b => b.bucket_name),
+                    [{
+                      label: 'Outstanding Amount',
+                      data: report.buckets.map(b => b.total_amount),
+                      backgroundColor: [
+                        'rgba(34, 197, 94, 0.8)',   // green
+                        'rgba(234, 179, 8, 0.8)',   // yellow
+                        'rgba(249, 115, 22, 0.8)',  // orange
+                        'rgba(239, 68, 68, 0.8)'    // red
+                      ],
+                    }]
+                  )}
+                  height={300}
+                />
+              </div>
+
+              {/* Top Customers Chart */}
+              <div className="bg-white rounded-lg shadow p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                  👥 Top 5 Customers
+                </h2>
+                <ReportChart
+                  type="bar"
+                  data={prepareChartData(
+                    report.top_customers.slice(0, 5).map(c => c.customer_name),
+                    [{
+                      label: 'Outstanding',
+                      data: report.top_customers.slice(0, 5).map(c => c.outstanding_amount),
+                      backgroundColor: 'rgba(239, 68, 68, 0.8)',
+                    }]
+                  )}
+                  height={300}
+                />
+              </div>
+            </div>
+
             {/* Aging Buckets */}
             <div className="bg-white rounded-lg shadow p-6 mb-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">
@@ -368,13 +416,65 @@ export default function ARAgingPage() {
             <div className="bg-white rounded-lg shadow p-6">
               <h3 className="font-semibold text-gray-900 mb-4">Export Report</h3>
               <div className="flex flex-wrap gap-3">
-                <button className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+                <button 
+                  onClick={() => {
+                    const data = [
+                      { Type: 'Summary', ...formatDataForExport(report) },
+                      ...report.buckets.map(b => ({
+                        Type: 'Bucket',
+                        Name: b.bucket_name,
+                        Amount: b.total_amount,
+                        Invoices: b.invoice_count,
+                        Percentage: b.percentage
+                      })),
+                      ...report.top_customers.map(c => ({
+                        Type: 'Top Customer',
+                        Name: c.customer_name,
+                        Outstanding: c.outstanding_amount,
+                        Invoices: c.invoice_count
+                      }))
+                    ];
+                    exportToExcel(data, 'AR_Aging_Report');
+                  }}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                >
                   📊 Export to Excel
                 </button>
-                <button className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+                <button 
+                  onClick={() => {
+                    const bucketData = report.buckets.map(b => ({
+                      'Aging_Bucket': b.bucket_name,
+                      'Invoices': b.invoice_count,
+                      'Amount': b.total_amount,
+                      'Percentage': `${b.percentage}%`
+                    }));
+                    exportToPDF(
+                      `AR Aging Report - As of ${report.as_of_date}`,
+                      bucketData,
+                      ['Aging_Bucket', 'Invoices', 'Amount', 'Percentage'],
+                      'AR_Aging_Report.pdf'
+                    );
+                  }}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                >
                   📄 Export to PDF
                 </button>
-                <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                <button 
+                  onClick={() => {
+                    const allInvoices = report.buckets.flatMap(bucket => 
+                      bucket.invoices.map(inv => ({
+                        Bucket: bucket.bucket_name,
+                        Invoice: inv.invoice_number,
+                        Customer: inv.customer_name,
+                        Amount: inv.amount,
+                        Days_Outstanding: inv.days_outstanding,
+                        Date_Issued: inv.date_issued
+                      }))
+                    );
+                    exportToCSV(allInvoices, 'AR_Aging_Invoices');
+                  }}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
                   📋 Export to CSV
                 </button>
                 <button

@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
+import ReportChart, { prepareChartData } from '@/components/ReportChart';
+import { exportCashFlowPDF, exportToExcel, exportToCSV, formatDataForExport } from '@/utils/exportUtils';
 
 interface CashFlowInflows {
   total_inflows: number;
@@ -196,6 +198,83 @@ export default function CashFlowPage() {
               </div>
             </div>
 
+            {/* Chart Visualizations */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+              {/* Cash Flow Waterfall Chart */}
+              <div className="bg-white rounded-lg shadow p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                  💧 Cash Flow Waterfall
+                </h2>
+                <ReportChart
+                  type="bar"
+                  data={prepareChartData(
+                    ['Opening', 'Inflows', 'Outflows', 'Closing'],
+                    [{
+                      label: 'Cash Position',
+                      data: [
+                        report.opening_balance,
+                        report.inflows.total_inflows,
+                        -report.outflows.total_outflows,
+                        report.closing_balance
+                      ],
+                      backgroundColor: [
+                        'rgba(156, 163, 175, 0.8)', // gray
+                        'rgba(34, 197, 94, 0.8)',   // green
+                        'rgba(239, 68, 68, 0.8)',   // red
+                        'rgba(168, 85, 247, 0.8)'   // purple
+                      ],
+                    }]
+                  )}
+                  height={300}
+                />
+              </div>
+
+              {/* Inflows vs Outflows Comparison */}
+              <div className="bg-white rounded-lg shadow p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                  ⚖️ Inflows vs Outflows
+                </h2>
+                <ReportChart
+                  type="bar"
+                  data={prepareChartData(
+                    ['Inflows', 'Outflows', 'Net'],
+                    [{
+                      label: 'Amount',
+                      data: [
+                        report.inflows.total_inflows,
+                        report.outflows.total_outflows,
+                        report.net_cash_flow
+                      ],
+                      backgroundColor: [
+                        'rgba(34, 197, 94, 0.8)',
+                        'rgba(239, 68, 68, 0.8)',
+                        report.net_cash_flow >= 0 ? 'rgba(59, 130, 246, 0.8)' : 'rgba(239, 68, 68, 0.8)'
+                      ],
+                    }]
+                  )}
+                  height={300}
+                />
+              </div>
+            </div>
+
+            {/* Outflows by Category Chart */}
+            <div className="bg-white rounded-lg shadow p-6 mb-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                📊 Outflows by Category
+              </h2>
+              <ReportChart
+                type="doughnut"
+                data={prepareChartData(
+                  Object.keys(report.outflows.by_category),
+                  [{
+                    label: 'Outflows',
+                    data: Object.values(report.outflows.by_category),
+                  }]
+                )}
+                height={300}
+              />
+            </div>
+
             {/* Cash Flow Waterfall */}
             <div className="bg-white rounded-lg shadow p-6 mb-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">
@@ -350,13 +429,42 @@ export default function CashFlowPage() {
             <div className="bg-white rounded-lg shadow p-6">
               <h3 className="font-semibold text-gray-900 mb-4">Export Report</h3>
               <div className="flex flex-wrap gap-3">
-                <button className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+                <button 
+                  onClick={() => {
+                    const data = [
+                      { Type: 'Summary', ...formatDataForExport(report) },
+                      { Type: 'Inflows', ...formatDataForExport(report.inflows) },
+                      { Type: 'Outflows', 'Total': report.outflows.total_outflows, ...report.outflows.by_category }
+                    ];
+                    exportToExcel(data, 'Cash_Flow_Report');
+                  }}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                >
                   📊 Export to Excel
                 </button>
-                <button className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+                <button 
+                  onClick={() => exportCashFlowPDF(report)}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                >
                   📄 Export to PDF
                 </button>
-                <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                <button 
+                  onClick={() => {
+                    const data = [
+                      { Section: 'Opening Balance', Amount: report.opening_balance },
+                      { Section: 'Total Inflows', Amount: report.inflows.total_inflows },
+                      { Section: 'Total Outflows', Amount: report.outflows.total_outflows },
+                      { Section: 'Net Cash Flow', Amount: report.net_cash_flow },
+                      { Section: 'Closing Balance', Amount: report.closing_balance },
+                      ...Object.entries(report.outflows.by_category).map(([cat, amt]) => ({
+                        Section: `Outflow: ${cat}`,
+                        Amount: amt
+                      }))
+                    ];
+                    exportToCSV(data, 'Cash_Flow_Report');
+                  }}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
                   📋 Export to CSV
                 </button>
                 <button
