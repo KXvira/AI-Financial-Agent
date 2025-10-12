@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
+import ReportChart, { prepareChartData } from '@/components/ReportChart';
+import { exportIncomeStatementPDF, exportToExcel, exportToCSV, formatDataForExport } from '@/utils/exportUtils';
 
 interface RevenueSection {
   total_revenue: number;
@@ -210,6 +212,78 @@ export default function IncomeStatementPage() {
               </div>
             </div>
 
+            {/* Charts Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+              {/* Revenue Breakdown Chart */}
+              <div className="bg-white rounded-lg shadow p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  Revenue Breakdown
+                </h3>
+                <ReportChart
+                  type="doughnut"
+                  data={prepareChartData(
+                    ['Paid', 'Pending'],
+                    [{
+                      label: 'Revenue Status',
+                      data: [report.revenue.paid_amount, report.revenue.pending_amount],
+                      backgroundColor: [
+                        'rgba(16, 185, 129, 0.8)',  // Green for paid
+                        'rgba(245, 158, 11, 0.8)',   // Orange for pending
+                      ],
+                    }]
+                  )}
+                  height={250}
+                />
+              </div>
+
+              {/* Top Expenses Chart */}
+              <div className="bg-white rounded-lg shadow p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  Top 5 Expense Categories
+                </h3>
+                <ReportChart
+                  type="bar"
+                  data={prepareChartData(
+                    report.expenses.top_categories.map(cat => cat.category),
+                    [{
+                      label: 'Expenses',
+                      data: report.expenses.top_categories.map(cat => cat.amount),
+                      backgroundColor: 'rgba(239, 68, 68, 0.8)',
+                      borderColor: 'rgba(239, 68, 68, 1)',
+                    }]
+                  )}
+                  height={250}
+                />
+              </div>
+            </div>
+
+            {/* Profit & Loss Chart */}
+            <div className="bg-white rounded-lg shadow p-6 mb-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Profit & Loss Overview
+              </h3>
+              <ReportChart
+                type="bar"
+                data={prepareChartData(
+                  ['Revenue', 'Expenses', 'Net Income'],
+                  [{
+                    label: 'Amount (KES)',
+                    data: [
+                      report.revenue.total_revenue,
+                      report.expenses.total_expenses,
+                      report.net_income
+                    ],
+                    backgroundColor: [
+                      'rgba(16, 185, 129, 0.8)',  // Green for revenue
+                      'rgba(239, 68, 68, 0.8)',    // Red for expenses
+                      report.net_income >= 0 ? 'rgba(59, 130, 246, 0.8)' : 'rgba(239, 68, 68, 0.8)', // Blue or Red for net income
+                    ],
+                  }]
+                )}
+                height={300}
+              />
+            </div>
+
             {/* Detailed Income Statement */}
             <div className="bg-white rounded-lg shadow overflow-hidden mb-6">
               <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
@@ -302,13 +376,67 @@ export default function IncomeStatementPage() {
             <div className="bg-white rounded-lg shadow p-6">
               <h3 className="font-semibold text-gray-900 mb-4">Export Report</h3>
               <div className="flex flex-wrap gap-3">
-                <button className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+                <button 
+                  onClick={() => {
+                    const exportData = report.expenses.top_categories.map(cat => ({
+                      Category: cat.category,
+                      Amount: cat.amount,
+                      Percentage: `${cat.percentage}%`
+                    }));
+                    exportToExcel(
+                      [
+                        { 
+                          Metric: 'Total Revenue', 
+                          Value: report.revenue.total_revenue 
+                        },
+                        { 
+                          Metric: 'Total Expenses', 
+                          Value: report.expenses.total_expenses 
+                        },
+                        { 
+                          Metric: 'Net Income', 
+                          Value: report.net_income 
+                        },
+                        { 
+                          Metric: 'Profit Margin', 
+                          Value: `${report.profit_margin}%` 
+                        },
+                        ...exportData
+                      ],
+                      'Income Statement',
+                      `income_statement_${report.period_start}_${report.period_end}.xlsx`
+                    );
+                  }}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                >
                   📊 Export to Excel
                 </button>
-                <button className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+                <button 
+                  onClick={() => exportIncomeStatementPDF(report)}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                >
                   📄 Export to PDF
                 </button>
-                <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                <button 
+                  onClick={() => {
+                    const exportData = report.expenses.top_categories.map(cat => ({
+                      Category: cat.category,
+                      Amount: cat.amount,
+                      Percentage: cat.percentage
+                    }));
+                    exportToCSV(
+                      [
+                        { Metric: 'Total Revenue', Value: report.revenue.total_revenue },
+                        { Metric: 'Total Expenses', Value: report.expenses.total_expenses },
+                        { Metric: 'Net Income', Value: report.net_income },
+                        { Metric: 'Profit Margin', Value: report.profit_margin },
+                        ...exportData
+                      ],
+                      `income_statement_${report.period_start}_${report.period_end}.csv`
+                    );
+                  }}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
                   📋 Export to CSV
                 </button>
                 <button
