@@ -144,10 +144,68 @@ export default function ReportsPage() {
           <>
             {/* Reports Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+              {/* Customer Statement Card */}
+              <Link
+                href="/reports/customer-statement"
+                className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg shadow-md hover:shadow-xl transition-all transform hover:-translate-y-1 p-6 border border-blue-400 text-white"
+              >
+                <div className="text-4xl mb-4">👤</div>
+                <h3 className="text-2xl font-bold mb-2">Customer Statement</h3>
+                <p className="text-blue-100 mb-4">
+                  Detailed transaction history and account status for individual customers
+                </p>
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center">
+                    <span className="mr-1">📊</span>
+                    Transaction history
+                  </div>
+                  <div className="flex items-center">
+                    <span className="mr-1">💰</span>
+                    Balance tracking
+                  </div>
+                  <div className="flex items-center">
+                    <span className="mr-1">⏰</span>
+                    Aging analysis
+                  </div>
+                </div>
+                <button className="mt-4 w-full bg-white text-blue-600 py-2 rounded-lg hover:bg-blue-50 transition-colors font-medium">
+                  View Statements →
+                </button>
+              </Link>
+
+              {/* Reconciliation Report Card */}
+              <Link
+                href="/reports/reconciliation"
+                className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg shadow-md hover:shadow-xl transition-all transform hover:-translate-y-1 p-6 border border-purple-400 text-white"
+              >
+                <div className="text-4xl mb-4">🔄</div>
+                <h3 className="text-2xl font-bold mb-2">Reconciliation Report</h3>
+                <p className="text-purple-100 mb-4">
+                  Track payment matching status and identify reconciliation issues
+                </p>
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center">
+                    <span className="mr-1">✅</span>
+                    Match rate tracking
+                  </div>
+                  <div className="flex items-center">
+                    <span className="mr-1">⚠️</span>
+                    Issue detection
+                  </div>
+                  <div className="flex items-center">
+                    <span className="mr-1">📋</span>
+                    Unmatched transactions
+                  </div>
+                </div>
+                <button className="mt-4 w-full bg-white text-purple-600 py-2 rounded-lg hover:bg-purple-50 transition-colors font-medium">
+                  View Report →
+                </button>
+              </Link>
+
               {/* Trend Analysis Card (Special Card) */}
               <Link
                 href="/reports/trends"
-                className="bg-gradient-to-br from-purple-500 to-blue-600 rounded-lg shadow-md hover:shadow-xl transition-all transform hover:-translate-y-1 p-6 border border-purple-400 text-white"
+                className="bg-gradient-to-br from-indigo-500 to-pink-600 rounded-lg shadow-md hover:shadow-xl transition-all transform hover:-translate-y-1 p-6 border border-indigo-400 text-white"
               >
                 <div className="text-4xl mb-4">📈</div>
                 <h3 className="text-xl font-bold mb-2">
