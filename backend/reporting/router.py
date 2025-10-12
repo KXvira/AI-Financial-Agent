@@ -12,7 +12,7 @@ from .tax_models import VATReport, TaxPeriod
 from .customer_service import CustomerStatementService
 from .reconciliation_report_service import ReconciliationReportService
 from .predictive_service import PredictiveAnalyticsService
-from .custom_ai_service import CustomAIReportService
+from .ai_reports_service import CustomAIReportsService as CustomAIReportService
 
 router = APIRouter(prefix="/reports", tags=["Reports"])
 
