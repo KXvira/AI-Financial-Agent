@@ -7,6 +7,8 @@ from typing import Optional
 from database.mongodb import get_database, Database
 from .service import ReportingService
 from .models import ReportTypesResponse
+from .tax_service import TaxService
+from .tax_models import VATReport, TaxPeriod
 
 router = APIRouter(prefix="/reports", tags=["Reports"])
 
@@ -259,3 +261,86 @@ async def get_year_over_year(
         return comparison
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error generating YoY comparison: {str(e)}")
+
+
+@router.get("/tax/vat-summary", response_model=VATReport)
+async def get_vat_summary(
+    start_date: str = Query(..., description="Start date (YYYY-MM-DD)"),
+    end_date: str = Query(..., description="End date (YYYY-MM-DD)"),
+    include_transactions: bool = Query(True, description="Include detailed transactions"),
+    db: Database = Depends(get_database)
+):
+    """
+    Generate VAT Summary Report
+    
+    Comprehensive VAT/Tax report including:
+    - Output VAT (sales/invoices)
+    - Input VAT (purchases/expenses)
+    - VAT breakdown by rate
+    - Net VAT payable/refundable
+    - Compliance status and filing deadline
+    - Detailed transactions (optional)
+    
+    Perfect for tax filing and compliance checks.
+    """
+    try:
+        service = TaxService(db)
+        vat_report = await service.generate_vat_report(
+            start_date=start_date,
+            end_date=end_date,
+            include_transactions=include_transactions
+        )
+        return vat_report
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating VAT report: {str(e)}")
+
+
+@router.get("/tax/periods/{year}", response_model=list[TaxPeriod])
+async def get_tax_periods(
+    year: int,
+    db: Database = Depends(get_database)
+):
+    """
+    Get tax filing periods for a year
+    
+    Returns all tax periods (monthly for Kenya VAT) including:
+    - Period start and end dates
+    - Filing deadlines
+    - Status (open, filed, overdue)
+    
+    Useful for tax calendar and compliance planning.
+    """
+    try:
+        service = TaxService(db)
+        periods = await service.get_tax_periods(year)
+        return periods
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching tax periods: {str(e)}")
+
+
+@router.get("/tax/filing-export")
+async def export_for_filing(
+    start_date: str = Query(..., description="Start date (YYYY-MM-DD)"),
+    end_date: str = Query(..., description="End date (YYYY-MM-DD)"),
+    db: Database = Depends(get_database)
+):
+    """
+    Export VAT report in format ready for tax authority filing
+    
+    Returns structured data formatted for:
+    - KRA iTax portal (Kenya)
+    - Other tax authority systems
+    
+    Includes all required fields for electronic filing.
+    """
+    try:
+        service = TaxService(db)
+        vat_report = await service.generate_vat_report(
+            start_date=start_date,
+            end_date=end_date,
+            include_transactions=False
+        )
+        filing_data = await service.export_vat_report_for_filing(vat_report)
+        return filing_data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error exporting filing data: {str(e)}")
