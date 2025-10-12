@@ -165,8 +165,12 @@ async def startup_event():
     # Initialize database connection if available
     if Database:
         try:
-            db = Database()
-            print(f"✅ Connected to MongoDB: {os.getenv('MONGODB_URI', 'Not configured')[:30]}...")
+            db = Database.get_instance()
+            mongo_uri = os.getenv('MONGO_URI', 'Not configured')
+            if mongo_uri != 'Not configured':
+                print(f"✅ Connected to MongoDB: {mongo_uri[:50]}...")
+            else:
+                print(f"⚠️  MongoDB URI not configured")
         except Exception as e:
             print(f"⚠️  Database connection failed: {e}")
     

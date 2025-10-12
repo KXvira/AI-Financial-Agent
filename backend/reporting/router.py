@@ -3,9 +3,8 @@ API Router for financial reports
 """
 from fastapi import APIRouter, HTTPException, Depends, Query
 from typing import Optional
-from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from database.mongodb import get_database
+from database.mongodb import get_database, Database
 from .service import ReportingService
 from .models import ReportTypesResponse
 
@@ -14,7 +13,7 @@ router = APIRouter(prefix="/reports", tags=["Reports"])
 
 @router.get("/types", response_model=ReportTypesResponse)
 async def get_report_types(
-    db: AsyncIOMotorDatabase = Depends(get_database)
+    db: Database = Depends(get_database)
 ):
     """
     Get list of available report types
@@ -39,7 +38,7 @@ async def get_income_statement(
     start_date: str = Query(..., description="Start date (YYYY-MM-DD)", example="2025-01-01"),
     end_date: str = Query(..., description="End date (YYYY-MM-DD)", example="2025-12-31"),
     customer_id: Optional[str] = Query(None, description="Filter by customer ID"),
-    db: AsyncIOMotorDatabase = Depends(get_database)
+    db: Database = Depends(get_database)
 ):
     """
     Generate Income Statement (Profit & Loss) report
@@ -76,7 +75,7 @@ async def get_income_statement(
 async def get_cash_flow(
     start_date: str = Query(..., description="Start date (YYYY-MM-DD)", example="2025-01-01"),
     end_date: str = Query(..., description="End date (YYYY-MM-DD)", example="2025-12-31"),
-    db: AsyncIOMotorDatabase = Depends(get_database)
+    db: Database = Depends(get_database)
 ):
     """
     Generate Cash Flow Statement
@@ -108,7 +107,7 @@ async def get_cash_flow(
 async def get_ar_aging(
     as_of_date: Optional[str] = Query(None, description="Calculate aging as of this date (YYYY-MM-DD), defaults to today"),
     customer_id: Optional[str] = Query(None, description="Filter by customer ID"),
-    db: AsyncIOMotorDatabase = Depends(get_database)
+    db: Database = Depends(get_database)
 ):
     """
     Generate Accounts Receivable Aging Report
@@ -142,7 +141,7 @@ async def get_ar_aging(
 
 @router.get("/dashboard-metrics")
 async def get_dashboard_metrics(
-    db: AsyncIOMotorDatabase = Depends(get_database)
+    db: Database = Depends(get_database)
 ):
     """
     Get Dashboard Metrics and KPIs
