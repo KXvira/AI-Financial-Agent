@@ -9,7 +9,7 @@ from typing import Dict, Any, Optional
 from datetime import datetime
 from bson import ObjectId
 
-from ..models import ReceiptType, PaymentMethod, LineItem, CustomerInfo
+from ..models import ReceiptType, PaymentMethod, LineItem, CustomerInfo, ReceiptGenerateRequest, ReceiptMetadata
 from ..service import ReceiptService
 
 logger = logging.getLogger("financial-agent.receipts.mpesa-integration")
@@ -107,59 +107,40 @@ class MpesaReceiptIntegration:
             tax_total = 0.0
             total = amount
             
-            # Prepare receipt metadata
-            metadata = {
-                "mpesa_receipt": mpesa_receipt,
-                "mpesa_phone": phone_number,
-                "transaction_reference": reference,
-                "payment_gateway": "mpesa",
-                "auto_generated": True,
-                "generated_by": "mpesa_integration",
-                "transaction_date": transaction_date,
-            }
-            
-            # Add invoice reference if available
+            # Create receipt metadata
+            receipt_metadata = ReceiptMetadata(
+                transaction_id=mpesa_receipt,
+                mpesa_receipt=mpesa_receipt,
+                reference_number=reference,
+                notes=f"Payment received via M-Pesa. Transaction Reference: {reference}"
+            )
             if invoice_id:
-                metadata["invoice_id"] = str(invoice_id)
-                metadata["linked_to_invoice"] = True
+                receipt_metadata.invoice_id = str(invoice_id)
             
-            # Generate receipt
-            receipt_data = {
-                "receipt_type": ReceiptType.PAYMENT,
-                "customer": customer_info,
-                "line_items": line_items,
-                "subtotal": subtotal,
-                "tax_total": tax_total,
-                "total": total,
-                "payment_method": PaymentMethod.MPESA,
-                "payment_reference": mpesa_receipt,
-                "notes": f"Payment received via M-Pesa. Transaction Reference: {reference}",
-                "metadata": metadata
-            }
+            # Create receipt generation request
+            receipt_request = ReceiptGenerateRequest(
+                receipt_type=ReceiptType.PAYMENT,
+                customer=customer_info,
+                payment_method=PaymentMethod.MPESA,
+                payment_date=None,  # Will use current date
+                amount=total,
+                description=description,
+                line_items=line_items,
+                include_vat=False,  # M-Pesa payments don't include VAT
+                metadata=receipt_metadata,
+                send_email=bool(customer_email)
+            )
             
             # Generate the receipt
-            receipt = await self.receipt_service.generate_receipt(receipt_data)
+            receipt = await self.receipt_service.generate_receipt(receipt_request)
             
-            logger.info(f"Receipt generated for M-Pesa payment: {receipt['receipt_number']}")
-            
-            # Send email if customer email is available
-            if customer_email:
-                try:
-                    email_result = await self.receipt_service.send_receipt_email(
-                        receipt_id=str(receipt["_id"]),
-                        email=customer_email,
-                        template_id=None  # Use default template
-                    )
-                    logger.info(f"Receipt email sent to {customer_email}: {email_result.get('success')}")
-                except Exception as email_error:
-                    logger.error(f"Failed to send receipt email: {str(email_error)}")
-                    # Don't fail the entire process if email fails
+            logger.info(f"Receipt generated for M-Pesa payment: {receipt.receipt_number}")
             
             return {
                 "success": True,
-                "receipt_id": str(receipt["_id"]),
-                "receipt_number": receipt["receipt_number"],
-                "pdf_path": receipt.get("pdf_path"),
+                "receipt_id": receipt.id,
+                "receipt_number": receipt.receipt_number,
+                "pdf_path": receipt.pdf_path,
                 "email_sent": bool(customer_email),
                 "message": "Receipt generated successfully"
             }
@@ -228,48 +209,36 @@ class MpesaReceiptIntegration:
                 )
             ]
             
-            # Prepare receipt metadata
-            metadata = {
-                "refund_reference": refund_reference,
-                "original_reference": original_reference,
-                "payment_gateway": "mpesa",
-                "auto_generated": True,
-                "generated_by": "mpesa_integration",
-            }
+            # Create receipt metadata
+            receipt_metadata = ReceiptMetadata(
+                transaction_id=refund_reference,
+                reference_number=original_reference,
+                notes=f"Refund for original transaction: {original_reference}"
+            )
             
-            # Generate refund receipt
-            receipt_data = {
-                "receipt_type": ReceiptType.REFUND,
-                "customer": customer_info,
-                "line_items": line_items,
-                "subtotal": amount,
-                "tax_total": 0.0,
-                "total": amount,
-                "payment_method": PaymentMethod.MPESA,
-                "payment_reference": refund_reference,
-                "notes": f"Refund for original transaction: {original_reference}",
-                "metadata": metadata
-            }
+            # Create receipt generation request
+            receipt_request = ReceiptGenerateRequest(
+                receipt_type=ReceiptType.REFUND,
+                customer=customer_info,
+                payment_method=PaymentMethod.MPESA,
+                payment_date=None,
+                amount=amount,
+                description=f"Refund for transaction {original_reference}",
+                line_items=line_items,
+                include_vat=False,
+                metadata=receipt_metadata,
+                send_email=bool(customer_email)
+            )
             
             # Generate the receipt
-            receipt = await self.receipt_service.generate_receipt(receipt_data)
+            receipt = await self.receipt_service.generate_receipt(receipt_request)
             
-            logger.info(f"Refund receipt generated: {receipt['receipt_number']}")
-            
-            # Send email if available
-            if customer_email:
-                try:
-                    await self.receipt_service.send_receipt_email(
-                        receipt_id=str(receipt["_id"]),
-                        email=customer_email
-                    )
-                except Exception as email_error:
-                    logger.error(f"Failed to send refund receipt email: {str(email_error)}")
+            logger.info(f"Refund receipt generated: {receipt.receipt_number}")
             
             return {
                 "success": True,
-                "receipt_id": str(receipt["_id"]),
-                "receipt_number": receipt["receipt_number"],
+                "receipt_id": receipt.id,
+                "receipt_number": receipt.receipt_number,
                 "email_sent": bool(customer_email)
             }
             

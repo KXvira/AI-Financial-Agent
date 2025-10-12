@@ -9,7 +9,7 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime
 from bson import ObjectId
 
-from ..models import ReceiptType, PaymentMethod, LineItem, CustomerInfo
+from ..models import ReceiptType, PaymentMethod, LineItem, CustomerInfo, ReceiptGenerateRequest, ReceiptMetadata
 from ..service import ReceiptService
 
 logger = logging.getLogger("financial-agent.receipts.invoice-integration")
@@ -139,45 +139,38 @@ class InvoiceReceiptIntegration:
             else:
                 notes = f"Full payment received for Invoice #{invoice_number}. Thank you for your business!"
             
-            # Generate receipt
-            receipt_data = {
-                "receipt_type": receipt_type,
-                "customer": customer_info,
-                "line_items": line_items,
-                "subtotal": subtotal,
-                "tax_total": tax_total,
-                "total": amount_paid,  # Use amount paid as total for partial payments
-                "payment_method": payment_method,
-                "payment_reference": payment_reference,
-                "notes": notes,
-                "metadata": metadata
-            }
+            # Create receipt metadata
+            receipt_metadata = ReceiptMetadata(
+                invoice_id=metadata.get("invoice_id"),
+                reference_number=payment_reference,
+                notes=notes
+            )
+            
+            # Create receipt generation request
+            receipt_request = ReceiptGenerateRequest(
+                receipt_type=receipt_type,
+                customer=customer_info,
+                payment_method=payment_method,
+                payment_date=payment_data.get("payment_date") if payment_data else None,
+                amount=amount_paid,  # Total amount paid
+                description=notes,
+                line_items=line_items,
+                include_vat=True,  # We're already providing calculated values
+                metadata=receipt_metadata,
+                send_email=bool(customer_info.email)
+            )
             
             # Generate the receipt
-            receipt = await self.receipt_service.generate_receipt(receipt_data)
+            receipt = await self.receipt_service.generate_receipt(receipt_request)
             
-            logger.info(f"Receipt generated for invoice payment: {receipt['receipt_number']}")
-            
-            # Send email if customer email is available
-            customer_email = customer_data.get("email")
-            if customer_email:
-                try:
-                    email_result = await self.receipt_service.send_receipt_email(
-                        receipt_id=str(receipt["_id"]),
-                        email=customer_email,
-                        template_id=None  # Use default template
-                    )
-                    logger.info(f"Receipt email sent to {customer_email}: {email_result.get('success')}")
-                except Exception as email_error:
-                    logger.error(f"Failed to send receipt email: {str(email_error)}")
-                    # Don't fail the entire process if email fails
+            logger.info(f"Receipt generated for invoice payment: {receipt.receipt_number}")
             
             return {
                 "success": True,
-                "receipt_id": str(receipt["_id"]),
-                "receipt_number": receipt["receipt_number"],
-                "pdf_path": receipt.get("pdf_path"),
-                "email_sent": bool(customer_email),
+                "receipt_id": receipt.id,
+                "receipt_number": receipt.receipt_number,
+                "pdf_path": receipt.pdf_path,
+                "email_sent": bool(customer_data.get("email")),
                 "invoice_number": invoice_number,
                 "amount": amount_paid,
                 "message": "Receipt generated successfully"
@@ -240,51 +233,37 @@ class InvoiceReceiptIntegration:
                 )
             ]
             
-            # Prepare receipt metadata
-            metadata = {
-                "invoice_number": invoice_number,
-                "invoice_id": str(invoice_data.get("_id", invoice_data.get("id"))),
-                "refund_amount": refund_amount,
-                "refund_reason": refund_reason,
-                "auto_generated": True,
-                "generated_by": "invoice_integration",
-            }
+            # Create receipt metadata
+            receipt_metadata = ReceiptMetadata(
+                invoice_id=str(invoice_data.get("_id", invoice_data.get("id"))),
+                reference_number=refund_reference,
+                notes=f"Refund issued for Invoice #{invoice_number}. {refund_reason or ''}"
+            )
             
-            # Generate refund receipt
-            receipt_data = {
-                "receipt_type": ReceiptType.REFUND,
-                "customer": customer_info,
-                "line_items": line_items,
-                "subtotal": refund_amount,
-                "tax_total": 0.0,
-                "total": refund_amount,
-                "payment_method": PaymentMethod.OTHER,
-                "payment_reference": refund_reference,
-                "notes": f"Refund issued for Invoice #{invoice_number}. {refund_reason or ''}",
-                "metadata": metadata
-            }
+            # Create receipt generation request
+            receipt_request = ReceiptGenerateRequest(
+                receipt_type=ReceiptType.REFUND,
+                customer=customer_info,
+                payment_method=PaymentMethod.OTHER,
+                payment_date=None,
+                amount=refund_amount,
+                description=description,
+                line_items=line_items,
+                include_vat=False,
+                metadata=receipt_metadata,
+                send_email=bool(customer_info.email)
+            )
             
             # Generate the receipt
-            receipt = await self.receipt_service.generate_receipt(receipt_data)
+            receipt = await self.receipt_service.generate_receipt(receipt_request)
             
-            logger.info(f"Refund receipt generated: {receipt['receipt_number']}")
-            
-            # Send email if available
-            customer_email = customer_data.get("email")
-            if customer_email:
-                try:
-                    await self.receipt_service.send_receipt_email(
-                        receipt_id=str(receipt["_id"]),
-                        email=customer_email
-                    )
-                except Exception as email_error:
-                    logger.error(f"Failed to send refund receipt email: {str(email_error)}")
+            logger.info(f"Refund receipt generated: {receipt.receipt_number}")
             
             return {
                 "success": True,
-                "receipt_id": str(receipt["_id"]),
-                "receipt_number": receipt["receipt_number"],
-                "email_sent": bool(customer_email)
+                "receipt_id": receipt.id,
+                "receipt_number": receipt.receipt_number,
+                "email_sent": bool(customer_data.get("email"))
             }
             
         except Exception as e:
