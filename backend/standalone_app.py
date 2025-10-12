@@ -60,6 +60,13 @@ except ImportError as e:
     email_router = None
 
 try:
+    from reporting.router import router as reporting_router
+    print("✅ Reporting router imported")
+except ImportError as e:
+    print(f"❌ Reporting router import failed: {e}")
+    reporting_router = None
+
+try:
     from database.mongodb import Database
     print("✅ Database imported")
 except ImportError as e:
@@ -107,6 +114,10 @@ if email_router:
     app.include_router(email_router, prefix="/api")
     print("✅ Email Service routes added")
 
+if reporting_router:
+    app.include_router(reporting_router, prefix="/api")
+    print("✅ Reporting routes added")
+
 # Health check endpoint
 @app.get("/")
 async def root():
@@ -120,7 +131,8 @@ async def root():
             "AI Insights",
             "Customer Management",
             "AI Invoice Generation",
-            "Email Service"
+            "Email Service",
+            "Financial Reports"
         ]
     }
 
@@ -137,6 +149,7 @@ async def health_check():
             "customers": customers_router is not None,
             "ai_invoice": ai_invoice_router is not None,
             "email": email_router is not None,
+            "reporting": reporting_router is not None,
             "database": Database is not None
         }
     }
