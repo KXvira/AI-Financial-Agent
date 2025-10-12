@@ -48,7 +48,7 @@ export default function CashFlowPage() {
       setError(null);
       
       const response = await fetch(
-        `http://localhost:8000/api/reports/cash-flow?start_date=${startDate}&end_date=${endDate}`
+        `http://localhost:8000/reports/cash-flow?start_date=${startDate}&end_date=${endDate}`
       );
       
       if (!response.ok) {

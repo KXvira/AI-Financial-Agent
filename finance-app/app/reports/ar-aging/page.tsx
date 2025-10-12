@@ -58,7 +58,7 @@ export default function ARAgingPage() {
       setError(null);
       
       const response = await fetch(
-        `http://localhost:8000/api/reports/ar-aging?as_of_date=${asOfDate}`
+        `http://localhost:8000/reports/ar-aging?as_of_date=${asOfDate}`
       );
       
       if (!response.ok) {

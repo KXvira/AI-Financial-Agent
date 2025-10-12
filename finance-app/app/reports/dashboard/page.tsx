@@ -45,7 +45,7 @@ export default function DashboardMetricsPage() {
   const fetchMetrics = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:8000/api/reports/dashboard-metrics');
+      const response = await fetch('http://localhost:8000/reports/dashboard-metrics');
       
       if (!response.ok) {
         throw new Error('Failed to fetch dashboard metrics');

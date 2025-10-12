@@ -57,7 +57,7 @@ export default function IncomeStatementPage() {
       setError(null);
       
       const response = await fetch(
-        `http://localhost:8000/api/reports/income-statement?start_date=${startDate}&end_date=${endDate}`
+        `http://localhost:8000/reports/income-statement?start_date=${startDate}&end_date=${endDate}`
       );
       
       if (!response.ok) {

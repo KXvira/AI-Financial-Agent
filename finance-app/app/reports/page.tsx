@@ -34,7 +34,7 @@ export default function ReportsPage() {
   const fetchReportTypes = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:8000/api/reports/types');
+      const response = await fetch('http://localhost:8000/reports/types');
       
       if (!response.ok) {
         throw new Error('Failed to fetch report types');
