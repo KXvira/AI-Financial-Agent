@@ -264,6 +264,68 @@ export default function ReportsPage() {
                 </button>
               </Link>
 
+              {/* Predictive Analytics Card (Phase 3) */}
+              <Link
+                href="/reports/predictive-analytics"
+                className="bg-gradient-to-br from-cyan-500 to-blue-600 rounded-lg shadow-md hover:shadow-xl transition-all transform hover:-translate-y-1 p-6 border border-cyan-400 text-white"
+              >
+                <div className="text-4xl mb-4">🔮</div>
+                <h3 className="text-xl font-bold mb-2">
+                  Predictive Analytics
+                </h3>
+                <p className="text-cyan-100 text-sm mb-4">
+                  AI-powered forecasting for revenue, expenses, and cash flow with confidence intervals and trend analysis
+                </p>
+                <div className="space-y-2 mb-4">
+                  <div className="text-xs text-cyan-100 flex items-center">
+                    <span className="mr-1">📈</span>
+                    3-12 month forecasts
+                  </div>
+                  <div className="text-xs text-cyan-100 flex items-center">
+                    <span className="mr-1">🎯</span>
+                    95% confidence intervals
+                  </div>
+                  <div className="text-xs text-cyan-100 flex items-center">
+                    <span className="mr-1">🔍</span>
+                    Trend detection
+                  </div>
+                </div>
+                <button className="mt-4 w-full bg-white text-cyan-600 py-2 rounded-lg hover:bg-cyan-50 transition-colors font-medium">
+                  View Forecasts →
+                </button>
+              </Link>
+
+              {/* AI Reports Card (Phase 3) */}
+              <Link
+                href="/reports/ai-reports"
+                className="bg-gradient-to-br from-purple-500 to-fuchsia-600 rounded-lg shadow-md hover:shadow-xl transition-all transform hover:-translate-y-1 p-6 border border-purple-400 text-white"
+              >
+                <div className="text-4xl mb-4">✨</div>
+                <h3 className="text-xl font-bold mb-2">
+                  AI-Powered Reports
+                </h3>
+                <p className="text-purple-100 text-sm mb-4">
+                  Custom AI insights, anomaly detection, and natural language queries powered by Gemini AI
+                </p>
+                <div className="space-y-2 mb-4">
+                  <div className="text-xs text-purple-100 flex items-center">
+                    <span className="mr-1">💡</span>
+                    AI insights & recommendations
+                  </div>
+                  <div className="text-xs text-purple-100 flex items-center">
+                    <span className="mr-1">⚠️</span>
+                    Anomaly detection
+                  </div>
+                  <div className="text-xs text-purple-100 flex items-center">
+                    <span className="mr-1">💬</span>
+                    Natural language queries
+                  </div>
+                </div>
+                <button className="mt-4 w-full bg-white text-purple-600 py-2 rounded-lg hover:bg-purple-50 transition-colors font-medium">
+                  Ask AI →
+                </button>
+              </Link>
+
               {filteredReports.map(report => (
                 <Link
                   key={report.id}

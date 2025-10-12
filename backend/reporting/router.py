@@ -610,6 +610,44 @@ async def get_predictive_summary(
 
 # ==================== CUSTOM AI REPORTS ENDPOINTS ====================
 
+@router.get("/ai/insights")
+async def get_ai_insights(
+    report_type: str = Query("general", description="Type of insights to generate", enum=["general", "revenue", "expenses", "cash_flow"]),
+    days: int = Query(30, description="Number of days to analyze", ge=7, le=365),
+    db: Database = Depends(get_database)
+):
+    """
+    Get AI-powered insights about your financial data
+    
+    Analyzes your financial data and provides intelligent insights:
+    - General: Overall financial health assessment
+    - Revenue: Revenue patterns and opportunities
+    - Expenses: Expense analysis and optimization
+    - Cash Flow: Cash flow health and recommendations
+    
+    Each insight includes:
+    - Category classification
+    - Detailed insight description
+    - Actionable recommendations
+    - Impact assessment (positive/negative/neutral)
+    
+    Parameters:
+    - report_type: Type of insights (general, revenue, expenses, cash_flow)
+    - days: Analysis period (7-365 days)
+    
+    Returns:
+    - List of AI-generated insights
+    - Impact classification
+    - Recommendations
+    """
+    try:
+        service = CustomAIReportService(db)
+        insights = await service.get_ai_insights(report_type=report_type, period_days=days)
+        return insights
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating AI insights: {str(e)}")
+
+
 @router.post("/ai/custom-report")
 async def generate_custom_ai_report(
     query: str = Query(..., description="Natural language query for report"),
