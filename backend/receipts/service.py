@@ -386,6 +386,11 @@ class ReceiptService:
             "status": "voided"
         })
         
+        # Clean up any None keys from dictionaries
+        receipts_by_type = {k: v for k, v in receipts_by_type.items() if k is not None}
+        receipts_by_status = {k: v for k, v in receipts_by_status.items() if k is not None}
+        receipts_by_month = {k: v for k, v in receipts_by_month.items() if k is not None}
+        
         return ReceiptStatistics(
             total_receipts=total_receipts,
             receipts_by_type=receipts_by_type,
