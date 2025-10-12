@@ -57,6 +57,12 @@ export default function Navbar() {
                 Customers
               </Link>
               <Link 
+                href="/receipts" 
+                className="text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium transition-colors"
+              >
+                Receipts
+              </Link>
+              <Link 
                 href="/reports"
                 className="text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium transition-colors"
               >
