@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Mail, Send, CheckCircle, XCircle, AlertCircle, Key, Server } from 'lucide-react';
+import { Mail, Send, CheckCircle, XCircle, AlertCircle, Key, Server, ExternalLink, Copy, Check } from 'lucide-react';
 
 interface EmailConfig {
   is_configured: boolean;
@@ -19,6 +19,7 @@ export default function EmailConfigPage() {
   const [testEmail, setTestEmail] = useState('');
   const [testLoading, setTestLoading] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [copied, setCopied] = useState<string | null>(null);
 
   useEffect(() => {
     fetchConfig();
@@ -61,6 +62,12 @@ export default function EmailConfigPage() {
     } finally {
       setTestLoading(false);
     }
+  };
+
+  const copyToClipboard = (text: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    setCopied(label);
+    setTimeout(() => setCopied(null), 2000);
   };
 
   if (loading) {
@@ -204,82 +211,224 @@ export default function EmailConfigPage() {
           </div>
         </div>
 
-        {/* Setup Instructions */}
-        <div className="bg-white rounded-lg shadow">
+        {/* Setup Instructions - MailerSend */}
+        <div className="bg-white rounded-lg shadow mb-8">
           <div className="p-6 border-b border-gray-200">
-            <h2 className="text-xl font-semibold text-gray-900">Setup Instructions</h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-semibold text-gray-900">🚀 Quick Setup with MailerSend</h2>
+              <a
+                href="https://app.mailersend.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 text-blue-600 hover:text-blue-700 text-sm font-medium"
+              >
+                Open MailerSend Dashboard
+                <ExternalLink size={16} />
+              </a>
+            </div>
           </div>
           <div className="p-6">
-            <div className="prose max-w-none">
-              <p className="text-gray-600 mb-4">
-                To enable email delivery, configure the following environment variables:
-              </p>
-
-              <div className="bg-gray-900 text-green-400 p-4 rounded-lg font-mono text-sm mb-6 overflow-x-auto">
-                <div className="mb-2"># Email Configuration</div>
-                <div>SMTP_HOST=smtp.gmail.com</div>
-                <div>SMTP_PORT=587</div>
-                <div>SMTP_USER=your-email@gmail.com</div>
-                <div>SMTP_PASSWORD=your-app-password</div>
-                <div>FROM_EMAIL=your-email@gmail.com</div>
-                <div>FROM_NAME="Fin Guard Reports"</div>
-                <div>SMTP_USE_TLS=true</div>
-              </div>
-
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">For Gmail:</h3>
-              <ol className="list-decimal list-inside space-y-2 text-gray-600 mb-6">
-                <li>Enable 2-Factor Authentication on your Google account</li>
-                <li>Go to Google Account Settings → Security → App Passwords</li>
-                <li>Generate a new app password for "Mail"</li>
-                <li>Use the generated password in SMTP_PASSWORD</li>
-              </ol>
-
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">For Other Providers:</h3>
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-sm text-gray-600">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-4 py-2 text-left">Provider</th>
-                      <th className="px-4 py-2 text-left">SMTP Host</th>
-                      <th className="px-4 py-2 text-left">Port</th>
-                      <th className="px-4 py-2 text-left">TLS</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    <tr>
-                      <td className="px-4 py-2">Gmail</td>
-                      <td className="px-4 py-2">smtp.gmail.com</td>
-                      <td className="px-4 py-2">587</td>
-                      <td className="px-4 py-2">Yes</td>
-                    </tr>
-                    <tr>
-                      <td className="px-4 py-2">Outlook</td>
-                      <td className="px-4 py-2">smtp.office365.com</td>
-                      <td className="px-4 py-2">587</td>
-                      <td className="px-4 py-2">Yes</td>
-                    </tr>
-                    <tr>
-                      <td className="px-4 py-2">Yahoo</td>
-                      <td className="px-4 py-2">smtp.mail.yahoo.com</td>
-                      <td className="px-4 py-2">587</td>
-                      <td className="px-4 py-2">Yes</td>
-                    </tr>
-                    <tr>
-                      <td className="px-4 py-2">SendGrid</td>
-                      <td className="px-4 py-2">smtp.sendgrid.net</td>
-                      <td className="px-4 py-2">587</td>
-                      <td className="px-4 py-2">Yes</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="mt-6 p-4 bg-blue-50 border-l-4 border-blue-500 text-blue-700">
-                <p className="font-medium">💡 Pro Tip</p>
-                <p className="mt-1">
-                  After configuring environment variables, restart the backend server for changes to take effect.
+            <div className="space-y-6">
+              {/* Step 1 */}
+              <div className="border-l-4 border-blue-500 pl-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">1</span>
+                  <h3 className="text-lg font-semibold text-gray-900">Sign Up & Verify Domain</h3>
+                </div>
+                <p className="text-gray-600 mb-3">
+                  Create a free MailerSend account (3,000 emails/month) and verify your domain
                 </p>
+                <a
+                  href="https://www.mailersend.com/pricing"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700"
+                >
+                  View Pricing & Features <ExternalLink size={14} />
+                </a>
               </div>
+
+              {/* Step 2 */}
+              <div className="border-l-4 border-green-500 pl-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="bg-green-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">2</span>
+                  <h3 className="text-lg font-semibold text-gray-900">Get Your API Token</h3>
+                </div>
+                <ol className="text-gray-600 space-y-2 mb-3 text-sm">
+                  <li className="flex items-start gap-2">
+                    <span className="text-green-600 mt-1">→</span>
+                    Navigate to Settings → API Tokens in your MailerSend dashboard
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-green-600 mt-1">→</span>
+                    Click "Generate New Token" and select "Email send" permission
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-green-600 mt-1">→</span>
+                    Copy the token (starts with mlsn.)
+                  </li>
+                </ol>
+              </div>
+
+              {/* Step 3 */}
+              <div className="border-l-4 border-purple-500 pl-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="bg-purple-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">3</span>
+                  <h3 className="text-lg font-semibold text-gray-900">Configure Environment Variables</h3>
+                </div>
+                <p className="text-gray-600 mb-3">
+                  Add these variables to your <code className="bg-gray-100 px-2 py-1 rounded text-sm">.env</code> file:
+                </p>
+                
+                <div className="bg-gray-900 text-green-400 p-4 rounded-lg font-mono text-sm overflow-x-auto relative group">
+                  <button
+                    onClick={() => copyToClipboard(`MAILERSEND_API_TOKEN=mlsn.your_token_here
+MAILERSEND_FROM_EMAIL=noreply@yourdomain.com
+MAILERSEND_FROM_NAME=Finguard
+
+SMTP_HOST=smtp.mailersend.net
+SMTP_PORT=587
+SMTP_USER=MS_xxxxx@test-xxxxx.mlsender.net
+SMTP_PASSWORD=your_smtp_password
+SMTP_FROM_EMAIL=noreply@yourdomain.com
+SMTP_FROM_NAME=Finguard
+SMTP_USE_TLS=True`, 'config')}
+                    className="absolute top-2 right-2 bg-gray-800 hover:bg-gray-700 text-white px-3 py-1 rounded text-xs flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    {copied === 'config' ? <Check size={14} /> : <Copy size={14} />}
+                    {copied === 'config' ? 'Copied!' : 'Copy'}
+                  </button>
+                  <div className="mb-2 text-gray-500"># MailerSend Configuration</div>
+                  <div>MAILERSEND_API_TOKEN=<span className="text-yellow-400">mlsn.your_token_here</span></div>
+                  <div>MAILERSEND_FROM_EMAIL=<span className="text-yellow-400">noreply@yourdomain.com</span></div>
+                  <div>MAILERSEND_FROM_NAME=<span className="text-yellow-400">Finguard</span></div>
+                  <div className="mb-2"></div>
+                  <div className="text-gray-500"># SMTP Configuration (Optional)</div>
+                  <div>SMTP_HOST=<span className="text-yellow-400">smtp.mailersend.net</span></div>
+                  <div>SMTP_PORT=<span className="text-yellow-400">587</span></div>
+                  <div>SMTP_USER=<span className="text-yellow-400">MS_xxxxx@test-xxxxx.mlsender.net</span></div>
+                  <div>SMTP_PASSWORD=<span className="text-yellow-400">your_smtp_password</span></div>
+                  <div>SMTP_FROM_EMAIL=<span className="text-yellow-400">noreply@yourdomain.com</span></div>
+                  <div>SMTP_FROM_NAME=<span className="text-yellow-400">Finguard</span></div>
+                  <div>SMTP_USE_TLS=<span className="text-yellow-400">True</span></div>
+                </div>
+              </div>
+
+              {/* Step 4 */}
+              <div className="border-l-4 border-orange-500 pl-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="bg-orange-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">4</span>
+                  <h3 className="text-lg font-semibold text-gray-900">Restart Backend Server</h3>
+                </div>
+                <p className="text-gray-600 mb-3">
+                  Restart your backend to apply the new configuration
+                </p>
+                <div className="bg-gray-900 text-green-400 p-3 rounded-lg font-mono text-sm relative group">
+                  <button
+                    onClick={() => copyToClipboard('pkill -f "uvicorn backend.app:app" && python -m uvicorn backend.app:app --reload', 'restart')}
+                    className="absolute top-2 right-2 bg-gray-800 hover:bg-gray-700 text-white px-3 py-1 rounded text-xs flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    {copied === 'restart' ? <Check size={14} /> : <Copy size={14} />}
+                    {copied === 'restart' ? 'Copied!' : 'Copy'}
+                  </button>
+                  <div>$ pkill -f "uvicorn backend.app:app" && python -m uvicorn backend.app:app --reload</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Features Card */}
+        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg shadow p-6 mb-8">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">✨ What You Get with MailerSend</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="flex items-start gap-3">
+              <CheckCircle className="text-green-600 mt-1 flex-shrink-0" size={20} />
+              <div>
+                <p className="font-medium text-gray-900">3,000 Free Emails/Month</p>
+                <p className="text-sm text-gray-600">Perfect for small to medium businesses</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <CheckCircle className="text-green-600 mt-1 flex-shrink-0" size={20} />
+              <div>
+                <p className="font-medium text-gray-900">Real-time Analytics</p>
+                <p className="text-sm text-gray-600">Track opens, clicks, and deliverability</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <CheckCircle className="text-green-600 mt-1 flex-shrink-0" size={20} />
+              <div>
+                <p className="font-medium text-gray-900">Professional Templates</p>
+                <p className="text-sm text-gray-600">Beautiful, responsive email designs</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <CheckCircle className="text-green-600 mt-1 flex-shrink-0" size={20} />
+              <div>
+                <p className="font-medium text-gray-900">99.9% Uptime SLA</p>
+                <p className="text-sm text-gray-600">Reliable email delivery</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Alternative Providers */}
+        <div className="bg-white rounded-lg shadow">
+          <div className="p-6 border-b border-gray-200">
+            <h2 className="text-xl font-semibold text-gray-900">Alternative Email Providers</h2>
+            <p className="text-gray-600 mt-1">Other SMTP services you can use</p>
+          </div>
+          <div className="p-6">
+            <div className="overflow-x-auto">
+              <table className="min-w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Provider</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SMTP Host</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Port</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Free Tier</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  <tr className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="font-medium text-gray-900">MailerSend ⭐</div>
+                      <div className="text-sm text-gray-500">Recommended</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-mono">smtp.mailersend.net</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">587</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600">3,000/month</td>
+                  </tr>
+                  <tr className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="font-medium text-gray-900">SendGrid</div>
+                      <div className="text-sm text-gray-500">By Twilio</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-mono">smtp.sendgrid.net</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">587</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600">100/day</td>
+                  </tr>
+                  <tr className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="font-medium text-gray-900">Gmail</div>
+                      <div className="text-sm text-gray-500">Google Workspace</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-mono">smtp.gmail.com</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">587</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-orange-600">500/day</td>
+                  </tr>
+                  <tr className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="font-medium text-gray-900">Mailgun</div>
+                      <div className="text-sm text-gray-500">By Sinch</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-mono">smtp.mailgun.org</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">587</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600">5,000/month</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
         </div>

@@ -36,18 +36,19 @@ interface Customer {
 }
 
 interface FinancialSummary {
-  customer_id: string;
-  customer_name: string;
+  customer_id?: string;
+  customer_name?: string;
   total_invoices: number;
   total_billed: number;
   total_paid: number;
-  outstanding_amount: number;
-  average_invoice_amount: number;
-  average_payment_days: number;
-  payment_score: number;
+  outstanding_amount?: number;
+  outstanding_balance?: number;
+  average_invoice_amount?: number;
+  average_payment_days?: number | null;
+  payment_score?: number | null;
   last_invoice_date?: string;
   last_payment_date?: string;
-  payment_status: string;
+  payment_status?: string;
 }
 
 interface Invoice {
@@ -167,6 +168,7 @@ export default function CustomerDetailPage() {
   };
 
   const getStatusBadgeClass = (status: string) => {
+    if (!status) return 'bg-gray-100 text-gray-800';
     const statusLower = status.toLowerCase();
     if (statusLower === 'good') return 'bg-green-100 text-green-800';
     if (statusLower === 'warning') return 'bg-yellow-100 text-yellow-800';
@@ -263,23 +265,25 @@ export default function CustomerDetailPage() {
           <div className="bg-white rounded-lg shadow p-6">
             <p className="text-gray-600 text-sm mb-2">Total Paid</p>
             <p className="text-2xl font-bold text-green-600">{formatCurrency(financialSummary.total_paid)}</p>
-            <p className="text-gray-500 text-sm mt-2">Avg: {formatCurrency(financialSummary.average_invoice_amount)}</p>
+            <p className="text-gray-500 text-sm mt-2">Avg: {formatCurrency(financialSummary.average_invoice_amount || 0)}</p>
           </div>
 
           <div className="bg-white rounded-lg shadow p-6">
             <p className="text-gray-600 text-sm mb-2">Outstanding</p>
-            <p className="text-2xl font-bold text-orange-600">{formatCurrency(financialSummary.outstanding_amount)}</p>
-            <span className={`inline-block px-2 py-1 rounded text-xs font-semibold mt-2 ${getStatusBadgeClass(financialSummary.payment_status)}`}>
-              {financialSummary.payment_status.toUpperCase()}
-            </span>
+            <p className="text-2xl font-bold text-orange-600">{formatCurrency(financialSummary.outstanding_amount || financialSummary.outstanding_balance || 0)}</p>
+            {customer.payment_status && (
+              <span className={`inline-block px-2 py-1 rounded text-xs font-semibold mt-2 ${getStatusBadgeClass(customer.payment_status)}`}>
+                {customer.payment_status.toUpperCase()}
+              </span>
+            )}
           </div>
 
           <div className="bg-white rounded-lg shadow p-6">
             <p className="text-gray-600 text-sm mb-2">Payment Score</p>
-            <p className={`text-2xl font-bold ${getPaymentScoreColor(financialSummary.payment_score)}`}>
-              {financialSummary.payment_score}/100
+            <p className={`text-2xl font-bold ${getPaymentScoreColor(financialSummary.payment_score || 0)}`}>
+              {financialSummary.payment_score || 0}/100
             </p>
-            <p className="text-gray-500 text-sm mt-2">Avg: {financialSummary.average_payment_days} days</p>
+            <p className="text-gray-500 text-sm mt-2">Avg: {financialSummary.average_payment_days || 0} days</p>
           </div>
         </div>
 

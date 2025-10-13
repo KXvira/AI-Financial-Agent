@@ -128,8 +128,9 @@ export default function NewCustomerPage() {
       if (formData.tax_id?.trim()) {
         apiData.tax_id = formData.tax_id.trim();
       }
-      if (formData.payment_terms) {
-        apiData.payment_terms = Number(formData.payment_terms);
+      if (formData.payment_terms?.trim()) {
+        // Convert days to net_XX format (e.g., "30" -> "net_30")
+        apiData.payment_terms = `net_${formData.payment_terms.trim()}`;
       }
 
       // Notes
