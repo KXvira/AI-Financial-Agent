@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { EmailStatusBadge } from '../../components/EmailStatusBadge';
 import { EmailSetupModal } from '../../components/EmailSetupModal';
+import { ScheduleReportModal } from '../../components/ScheduleReportModal';
 
 interface ReportType {
   id: string;
@@ -22,15 +23,35 @@ interface ReportTypesResponse {
   categories: string[];
 }
 
+interface Schedule {
+  id: string;
+  name: string;
+  report_type: string;
+  schedule: {
+    frequency: string;
+    time: string;
+    day_of_week?: number;
+    day_of_month?: number;
+  };
+  recipients: string[];
+  enabled: boolean;
+  last_run?: string;
+  next_run?: string;
+}
+
 export default function ReportsPage() {
   const [reportTypes, setReportTypes] = useState<ReportType[]>([]);
+  const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [loading, setLoading] = useState(true);
+  const [schedulesLoading, setSchedulesLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [showEmailSetup, setShowEmailSetup] = useState(false);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
 
   useEffect(() => {
     fetchReportTypes();
+    fetchSchedules();
   }, []);
 
   const fetchReportTypes = async () => {
@@ -51,6 +72,41 @@ export default function ReportsPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchSchedules = async () => {
+    try {
+      setSchedulesLoading(true);
+      const response = await fetch('http://localhost:8000/automation/schedules');
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch schedules');
+      }
+
+      const data = await response.json();
+      setSchedules(data.schedules || []);
+    } catch (err) {
+      console.error('Error fetching schedules:', err);
+      setSchedules([]);
+    } finally {
+      setSchedulesLoading(false);
+    }
+  };
+
+  const formatScheduleTime = (schedule: Schedule) => {
+    const { frequency, time, day_of_week, day_of_month } = schedule.schedule;
+    const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    
+    if (frequency === 'daily') {
+      return `Daily at ${time}`;
+    } else if (frequency === 'weekly') {
+      return `Every ${daysOfWeek[day_of_week || 0]} at ${time}`;
+    } else if (frequency === 'monthly') {
+      return `Monthly on day ${day_of_month} at ${time}`;
+    } else if (frequency === 'quarterly') {
+      return `Quarterly at ${time}`;
+    }
+    return `${frequency} at ${time}`;
   };
 
   const filteredReports = selectedCategory === 'all' 
@@ -115,33 +171,63 @@ export default function ReportsPage() {
               </div>
             </div>
             <button 
-              onClick={() => setShowEmailSetup(true)}
+              onClick={() => setShowScheduleModal(true)}
               className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
             >
               + Schedule Report
             </button>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-white rounded-lg p-4 shadow-sm">
-              <h4 className="font-medium text-gray-700 mb-2">⏰ Weekly Summary</h4>
-              <p className="text-sm text-gray-600 mb-2">Every Monday at 9:00 AM</p>
-              <p className="text-xs text-gray-500">Last sent: Coming soon</p>
+          {schedulesLoading ? (
+            <div className="flex justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
             </div>
-            <div className="bg-white rounded-lg p-4 shadow-sm">
-              <h4 className="font-medium text-gray-700 mb-2">📊 Monthly Report</h4>
-              <p className="text-sm text-gray-600 mb-2">1st of each month</p>
-              <p className="text-xs text-gray-500">Last sent: Coming soon</p>
+          ) : schedules.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {schedules.map((schedule, index) => {
+                const borderColors = ['border-indigo-400', 'border-purple-400', 'border-green-400', 'border-blue-400', 'border-pink-400'];
+                return (
+                  <div key={schedule.id} className={`bg-white rounded-lg p-4 shadow-sm border-l-4 ${borderColors[index % borderColors.length]}`}>
+                    <div className="flex justify-between items-start mb-2">
+                      <h4 className="font-medium text-gray-700">{schedule.name}</h4>
+                      {schedule.enabled ? (
+                        <span className="inline-block px-2 py-1 bg-green-100 text-green-700 text-xs rounded">Active</span>
+                      ) : (
+                        <span className="inline-block px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded">Paused</span>
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-600 mb-2">{formatScheduleTime(schedule)}</p>
+                    <p className="text-xs text-gray-500 mb-1">
+                      Recipients: {schedule.recipients.length}
+                    </p>
+                    {schedule.last_run ? (
+                      <p className="text-xs text-gray-500">
+                        Last sent: {new Date(schedule.last_run).toLocaleDateString()}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-gray-500">Last sent: Never</p>
+                    )}
+                  </div>
+                );
+              })}
             </div>
-            <div className="bg-white rounded-lg p-4 shadow-sm">
-              <h4 className="font-medium text-gray-700 mb-2">💰 Cash Flow Alert</h4>
-              <p className="text-sm text-gray-600 mb-2">Daily at 8:00 AM</p>
-              <p className="text-xs text-gray-500">Last sent: Coming soon</p>
+          ) : (
+            <div className="text-center py-8 border-2 border-dashed border-indigo-300 rounded-lg">
+              <p className="text-gray-600 mb-2">📅 No scheduled reports yet</p>
+              <p className="text-sm text-gray-500">Click "+ Schedule Report" to create your first automated report</p>
             </div>
-          </div>
+          )}
 
-          <div className="mt-4 text-xs text-indigo-600">
-            💡 Configure email service to enable scheduled reports
+          <div className="mt-4 flex items-center justify-between">
+            <div className="text-sm text-gray-600">
+              ✅ <span className="font-medium">Email service is configured</span> - Ready to schedule automated reports
+            </div>
+            <button
+              onClick={() => setShowEmailSetup(true)}
+              className="text-xs text-indigo-600 hover:text-indigo-800 underline"
+            >
+              View Email Settings
+            </button>
           </div>
         </div>
 
@@ -460,6 +546,14 @@ export default function ReportsPage() {
       <EmailSetupModal 
         isOpen={showEmailSetup}
         onClose={() => setShowEmailSetup(false)}
+      />
+
+      {/* Schedule Report Modal */}
+      <ScheduleReportModal
+        isOpen={showScheduleModal}
+        onClose={() => setShowScheduleModal(false)}
+        reportTypes={reportTypes}
+        onScheduleCreated={fetchSchedules}
       />
     </div>
   );
