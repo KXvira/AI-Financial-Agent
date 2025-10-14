@@ -264,9 +264,9 @@ def main():
         # Calculate totals
         db = get_database()
         
-        # Calculate revenue
+        # Calculate revenue (from payments)
         income_pipeline = [
-            {'$match': {'type': 'income'}},
+            {'$match': {'type': 'payment'}},  # Changed from 'income' to 'payment'
             {'$group': {'_id': None, 'total': {'$sum': '$amount'}}}
         ]
         income_result = list(db['transactions'].aggregate(income_pipeline))
@@ -297,7 +297,10 @@ def main():
         print(f"   • Total Revenue: KES {total_revenue:,.2f}")
         print(f"   • Total Expenses: KES {total_expenses:,.2f}")
         print(f"   • Net Profit: KES {(total_revenue - total_expenses):,.2f}")
-        print(f"   • Profit Margin: {((total_revenue - total_expenses) / total_revenue * 100):.2f}%")
+        if total_revenue > 0:
+            print(f"   • Profit Margin: {((total_revenue - total_expenses) / total_revenue * 100):.2f}%")
+        else:
+            print(f"   • Profit Margin: N/A (no revenue)")
         
         print(f"\n📄 Invoice Status:")
         print(f"   • Paid: {paid_invoices:,} ({paid_invoices/total_invoices*100:.1f}%)")

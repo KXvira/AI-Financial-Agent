@@ -97,6 +97,82 @@ async def get_invoices(
 
 
 @router.get(
+    "/by-number/{invoice_number}",
+    summary="Get invoice by invoice number",
+    description="Get a single invoice by its invoice number (e.g., INV-2021-02-0290)"
+)
+async def get_invoice_by_number(invoice_number: str) -> Dict[str, Any]:
+    """Get single invoice details by invoice number"""
+    try:
+        from database.mongodb import Database
+        
+        db_instance = Database.get_instance()
+        db = db_instance.db
+        
+        # Find invoice by invoice_number field
+        doc = await db.invoices.find_one({"invoice_number": invoice_number})
+        
+        if not doc:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Invoice {invoice_number} not found"
+            )
+        
+        # Get invoice items if they exist
+        items = []
+        if 'items' in doc and doc['items']:
+            for item in doc['items']:
+                items.append({
+                    "description": item.get('description', ''),
+                    "quantity": item.get('quantity', 0),
+                    "unit_price": item.get('unit_price', 0),
+                    "amount": item.get('amount', 0),
+                })
+        
+        # Get payment transactions if they exist
+        payments = []
+        if 'payment_transactions' in doc and doc['payment_transactions']:
+            for payment_id in doc['payment_transactions']:
+                payment_doc = await db.transactions.find_one({"_id": payment_id})
+                if payment_doc:
+                    payments.append({
+                        "method": payment_doc.get('payment_method', 'Unknown'),
+                        "date": payment_doc.get('created_at', datetime.utcnow()).strftime("%Y-%m-%d"),
+                        "amount": payment_doc.get('amount', 0),
+                        "transactionId": payment_doc.get('transaction_id', 'N/A'),
+                    })
+        
+        invoice = {
+            "id": str(doc.get('_id')),
+            "number": doc.get('invoice_number', 'N/A'),
+            "client": doc.get('customer_name', 'Unknown'),
+            "customerEmail": doc.get('customer_email', ''),
+            "customerPhone": doc.get('customer_phone', ''),
+            "issueDate": doc.get('issue_date', doc.get('created_at', datetime.utcnow())).strftime("%Y-%m-%d"),
+            "dueDate": doc.get('due_date', datetime.utcnow()).strftime("%Y-%m-%d"),
+            "amount": doc.get('amount', 0),
+            "currency": doc.get('currency', 'KES'),
+            "status": doc.get('status', 'pending').capitalize(),
+            "description": doc.get('description', ''),
+            "items": items,
+            "payments": payments,
+            "notes": doc.get('notes', ''),
+            "created_at": doc.get('created_at', datetime.utcnow()).isoformat(),
+        }
+        
+        return invoice
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching invoice by number {invoice_number}: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch invoice: {str(e)}"
+        )
+
+
+@router.get(
     "/{invoice_id}",
     summary="Get invoice by ID",
     description="Get a single invoice by its ID"
