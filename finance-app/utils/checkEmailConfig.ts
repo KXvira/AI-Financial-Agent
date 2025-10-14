@@ -3,7 +3,7 @@
  */
 
 interface EmailConfigResponse {
-  is_configured: boolean;
+  configured: boolean;
   service?: string;
   from_email?: string;
   from_name?: string;
@@ -35,7 +35,7 @@ export async function checkEmailConfig(): Promise<CheckEmailResult> {
     const data: EmailConfigResponse = await response.json();
     
     return {
-      isConfigured: data.is_configured,
+      isConfigured: data.configured,
       config: data
     };
   } catch (error) {
@@ -54,12 +54,8 @@ export async function checkEmailConfig(): Promise<CheckEmailResult> {
  */
 export async function sendTestEmail(toEmail: string): Promise<{ success: boolean; message: string }> {
   try {
-    const response = await fetch('http://localhost:8000/automation/email/test', {
+    const response = await fetch(`http://localhost:8000/automation/email/test?recipient=${encodeURIComponent(toEmail)}`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ to_email: toEmail }),
     });
 
     const data = await response.json();

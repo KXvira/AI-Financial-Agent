@@ -39,8 +39,8 @@ export function SystemStatusWidget() {
       const emailResponse = await fetch('http://localhost:8000/automation/email/config');
       const emailData = await emailResponse.json();
       newStatus.email = {
-        status: emailData.is_configured ? 'configured' : 'not-configured',
-        message: emailData.is_configured ? 'Ready to send emails' : 'Needs configuration'
+        status: emailData.configured ? 'configured' : 'not-configured',
+        message: emailData.configured ? 'Ready to send emails' : 'Needs configuration'
       };
 
       // Check AI Service

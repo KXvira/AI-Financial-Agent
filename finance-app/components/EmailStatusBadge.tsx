@@ -29,7 +29,7 @@ export function EmailStatusBadge({
     try {
       const response = await fetch('http://localhost:8000/automation/email/config');
       const data = await response.json();
-      setIsConfigured(data.is_configured);
+      setIsConfigured(data.configured);
     } catch (error) {
       console.error('Error fetching email config:', error);
       setIsConfigured(false);
@@ -44,10 +44,8 @@ export function EmailStatusBadge({
     setTestResult(null);
 
     try {
-      const response = await fetch('http://localhost:8000/automation/email/test', {
+      const response = await fetch(`http://localhost:8000/automation/email/test?recipient=${encodeURIComponent(testEmail)}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to_email: testEmail }),
       });
 
       const data = await response.json();
