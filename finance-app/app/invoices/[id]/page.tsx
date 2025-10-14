@@ -7,6 +7,8 @@ import { jsPDF } from "jspdf";
 import { useState } from "react";
 import SendInvoiceEmailModal from "@/components/SendInvoiceEmailModal";
 import EmailHistory from "@/components/EmailHistory";
+import { EmailSetupModal } from "@/components/EmailSetupModal";
+import { checkEmailConfig } from "@/utils/checkEmailConfig";
 
 type InvoiceItem = {
   item: string;
@@ -71,6 +73,7 @@ export default function InvoiceDetailPage() {
   const [invoiceData, setInvoiceData] = useState(invoice);
   const [paymentRef, setPaymentRef] = useState("");
   const [showEmailModal, setShowEmailModal] = useState(false);
+  const [showEmailSetup, setShowEmailSetup] = useState(false);
 
   if (!invoiceData) {
     return (
@@ -97,6 +100,20 @@ export default function InvoiceDetailPage() {
   const handleDelete = () => {
     alert("Invoice deleted");
     router.push("/invoices");
+  };
+
+  const handleSendInvoice = async () => {
+    // Check email configuration first
+    const result = await checkEmailConfig();
+    
+    if (!result.isConfigured) {
+      // Show setup modal if email not configured
+      setShowEmailSetup(true);
+      return;
+    }
+    
+    // If configured, open the email modal
+    setShowEmailModal(true);
   };
 
   const generatePDF = () => {
@@ -135,7 +152,7 @@ export default function InvoiceDetailPage() {
         </div>
         <div className="flex gap-3">
           <button
-            onClick={() => setShowEmailModal(true)}
+            onClick={handleSendInvoice}
             className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center gap-2"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -269,6 +286,12 @@ export default function InvoiceDetailPage() {
           }}
         />
       )}
+
+      {/* Email Setup Modal */}
+      <EmailSetupModal 
+        isOpen={showEmailSetup}
+        onClose={() => setShowEmailSetup(false)}
+      />
     </div>
   );
 }

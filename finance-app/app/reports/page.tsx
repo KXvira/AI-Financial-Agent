@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { EmailStatusBadge } from '../../components/EmailStatusBadge';
+import { EmailSetupModal } from '../../components/EmailSetupModal';
 
 interface ReportType {
   id: string;
@@ -25,6 +27,7 @@ export default function ReportsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [showEmailSetup, setShowEmailSetup] = useState(false);
 
   useEffect(() => {
     fetchReportTypes();
@@ -87,6 +90,59 @@ export default function ReportsPage() {
           <p className="text-gray-600">
             Generate comprehensive financial reports and analytics
           </p>
+        </div>
+
+        {/* Email Status Badge */}
+        <div className="mb-6">
+          <EmailStatusBadge 
+            onSetupClick={() => setShowEmailSetup(true)}
+            showTestButton={true}
+          />
+        </div>
+
+        {/* Scheduled Reports Section */}
+        <div className="mb-6 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg p-6 border border-indigo-200">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-indigo-100 rounded-lg">
+                <svg className="h-5 w-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-800">📅 Scheduled Reports</h3>
+                <p className="text-sm text-gray-600">Automate report generation and email delivery</p>
+              </div>
+            </div>
+            <button 
+              onClick={() => setShowEmailSetup(true)}
+              className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
+            >
+              + Schedule Report
+            </button>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-white rounded-lg p-4 shadow-sm">
+              <h4 className="font-medium text-gray-700 mb-2">⏰ Weekly Summary</h4>
+              <p className="text-sm text-gray-600 mb-2">Every Monday at 9:00 AM</p>
+              <p className="text-xs text-gray-500">Last sent: Coming soon</p>
+            </div>
+            <div className="bg-white rounded-lg p-4 shadow-sm">
+              <h4 className="font-medium text-gray-700 mb-2">📊 Monthly Report</h4>
+              <p className="text-sm text-gray-600 mb-2">1st of each month</p>
+              <p className="text-xs text-gray-500">Last sent: Coming soon</p>
+            </div>
+            <div className="bg-white rounded-lg p-4 shadow-sm">
+              <h4 className="font-medium text-gray-700 mb-2">💰 Cash Flow Alert</h4>
+              <p className="text-sm text-gray-600 mb-2">Daily at 8:00 AM</p>
+              <p className="text-xs text-gray-500">Last sent: Coming soon</p>
+            </div>
+          </div>
+
+          <div className="mt-4 text-xs text-indigo-600">
+            💡 Configure email service to enable scheduled reports
+          </div>
         </div>
 
         {/* Category Filters */}
@@ -399,6 +455,12 @@ export default function ReportsPage() {
           </>
         )}
       </div>
+
+      {/* Email Setup Modal */}
+      <EmailSetupModal 
+        isOpen={showEmailSetup}
+        onClose={() => setShowEmailSetup(false)}
+      />
     </div>
   );
 }

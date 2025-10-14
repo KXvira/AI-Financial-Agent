@@ -3,6 +3,8 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
+import { EmailSetupModal } from '@/components/EmailSetupModal';
+import { checkEmailConfig } from '@/utils/checkEmailConfig';
 
 interface Receipt {
   _id: string;
@@ -41,6 +43,7 @@ export default function ReceiptDetailPage({ params }: { params: { id: string } }
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [showEmailSetup, setShowEmailSetup] = useState(false);
 
   useEffect(() => {
     fetchReceipt();
@@ -89,6 +92,16 @@ export default function ReceiptDetailPage({ params }: { params: { id: string } }
   };
 
   const sendEmail = async () => {
+    // Check email configuration first
+    const result = await checkEmailConfig();
+    
+    if (!result.isConfigured) {
+      // Show setup modal if email not configured
+      setShowEmailSetup(true);
+      return;
+    }
+    
+    // If configured, proceed with sending
     const email = prompt('Enter email address:', receipt?.customer.email || '');
     if (!email) return;
     
@@ -342,6 +355,12 @@ export default function ReceiptDetailPage({ params }: { params: { id: string } }
           </div>
         </div>
       </div>
+
+      {/* Email Setup Modal */}
+      <EmailSetupModal 
+        isOpen={showEmailSetup}
+        onClose={() => setShowEmailSetup(false)}
+      />
     </div>
   );
 }
