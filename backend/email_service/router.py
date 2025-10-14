@@ -57,9 +57,9 @@ class EmailHistoryItem(BaseModel):
 
 
 # Dependency to get service
-async def get_email_service():
+def get_email_service():
     """Dependency to get email service"""
-    db = await get_database()
+    db = get_database()
     return EmailService(db)
 
 

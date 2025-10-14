@@ -20,6 +20,7 @@ class DashboardService:
     def __init__(self, db: AsyncIOMotorDatabase):
         self.db = db
         self.invoices = db.invoices
+        self.payments = db.payments
         self.transactions = db.transactions
         self.receipts = db.receipts
     
@@ -142,12 +143,12 @@ class DashboardService:
         # Add user filter only if user_id is provided
         user_filter = {"user_id": user_id} if user_id else {}
         
-        # Get invoices stats
+        # Get invoices stats (using normalized schema: total_amount)
         invoices_pipeline = [
             {"$match": {**user_filter, **date_filter}},
             {"$group": {
                 "_id": None,
-                "total": {"$sum": "$amount"},
+                "total": {"$sum": "$total_amount"},
                 "count": {"$sum": 1}
             }}
         ]
@@ -156,12 +157,11 @@ class DashboardService:
         invoices_total = invoices_result[0]['total'] if invoices_result else 0.0
         invoices_count = invoices_result[0]['count'] if invoices_result else 0
         
-        # Get payments stats (from transactions with type='payment')
+        # Get payments stats (from payments collection with normalized schema)
         payments_pipeline = [
             {"$match": {
                 **user_filter,
-                "type": "payment",
-                "status": {"$in": ["completed", "success"]},
+                "status": "completed",
                 **date_filter
             }},
             {"$group": {
@@ -171,7 +171,7 @@ class DashboardService:
             }}
         ]
         
-        payments_result = await self.transactions.aggregate(payments_pipeline).to_list(None)
+        payments_result = await self.payments.aggregate(payments_pipeline).to_list(None)
         payments_total = payments_result[0]['total'] if payments_result else 0.0
         payments_count = payments_result[0]['count'] if payments_result else 0
         
@@ -225,25 +225,38 @@ class DashboardService:
         user_id: Optional[str],
         limit: int = 5
     ) -> List[RecentPayment]:
-        """Get recent payments"""
+        """Get recent payments from payments collection"""
         try:
             query = {
-                "type": "payment",
-                "status": {"$in": ["completed", "success"]}
+                "status": "completed"
             }
             if user_id:
                 query["user_id"] = user_id
             
-            cursor = self.transactions.find(query).sort("created_at", -1).limit(limit)
+            cursor = self.payments.find(query).sort("created_at", -1).limit(limit)
             
             payments = []
             async for doc in cursor:
+                # Get customer name from customers collection
+                customer_name = "Unknown"
+                if doc.get('customer_id'):
+                    customer = await self.db.customers.find_one({"customer_id": doc.get('customer_id')})
+                    if customer:
+                        customer_name = customer.get('name', 'Unknown')
+                
+                # Parse date safely
+                payment_date = doc.get('payment_date')
+                if isinstance(payment_date, str):
+                    payment_date = datetime.fromisoformat(payment_date.replace(' ', 'T'))
+                elif not isinstance(payment_date, datetime):
+                    payment_date = datetime.utcnow()
+                
                 payments.append(RecentPayment(
-                    reference=doc.get('mpesa_reference', doc.get('invoice_number', str(doc.get('_id')))),
-                    client=doc.get('customer_name', doc.get('description', 'Unknown')),
+                    reference=doc.get('transaction_reference', str(doc.get('_id'))),
+                    client=customer_name,
                     amount=doc.get('amount', 0.0),
                     currency=doc.get('currency', 'KES'),
-                    date=doc.get('created_at', datetime.utcnow()),
+                    date=payment_date,
                     status=doc.get('status', 'completed')
                 ))
             

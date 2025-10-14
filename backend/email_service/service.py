@@ -531,6 +531,12 @@ class EmailService:
     ) -> List[Dict[str, Any]]:
         """Get email send history"""
         try:
+            # Check if email_logs collection exists
+            collection_names = await self.db.list_collection_names()
+            if "email_logs" not in collection_names:
+                self.logger.info("email_logs collection does not exist yet. Returning empty list.")
+                return []
+            
             query = {}
             if invoice_id:
                 query["invoice_id"] = invoice_id
