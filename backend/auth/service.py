@@ -5,7 +5,7 @@ import os
 import bcrypt
 import jwt
 from datetime import datetime, timedelta
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from fastapi import HTTPException, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
 import secrets
@@ -300,26 +300,58 @@ class AuthService:
     async def get_user_by_id(self, user_id: str) -> Optional[User]:
         """Get user by ID"""
         try:
+            # Ensure service is initialized
+            await self.initialize()
+            
             from bson import ObjectId
             user_doc = await self.users_collection.find_one({"_id": ObjectId(user_id)})
             if user_doc:
+                # Convert _id to string
                 user_doc["_id"] = str(user_doc["_id"])
+                
+                # Ensure status is a UserStatus enum if it's a string
+                if "status" in user_doc and isinstance(user_doc["status"], str):
+                    from .models import UserStatus
+                    user_doc["status"] = UserStatus(user_doc["status"])
+                
+                # Ensure role is a UserRole enum if it's a string
+                if "role" in user_doc and isinstance(user_doc["role"], str):
+                    from .models import UserRole
+                    user_doc["role"] = UserRole(user_doc["role"])
+                
                 return User(**user_doc)
             return None
         except Exception as e:
             logger.error(f"Error getting user by ID: {str(e)}")
+            logger.error(f"User document: {user_doc if 'user_doc' in locals() else 'N/A'}")
             return None
     
     async def get_user_by_email(self, email: str) -> Optional[User]:
         """Get user by email"""
         try:
+            # Ensure service is initialized
+            await self.initialize()
+            
             user_doc = await self.users_collection.find_one({"email": email})
             if user_doc:
+                # Convert _id to string
                 user_doc["_id"] = str(user_doc["_id"])
+                
+                # Ensure status is a UserStatus enum if it's a string
+                if "status" in user_doc and isinstance(user_doc["status"], str):
+                    from .models import UserStatus
+                    user_doc["status"] = UserStatus(user_doc["status"])
+                
+                # Ensure role is a UserRole enum if it's a string
+                if "role" in user_doc and isinstance(user_doc["role"], str):
+                    from .models import UserRole
+                    user_doc["role"] = UserRole(user_doc["role"])
+                
                 return User(**user_doc)
             return None
         except Exception as e:
             logger.error(f"Error getting user by email: {str(e)}")
+            logger.error(f"User document: {user_doc if 'user_doc' in locals() else 'N/A'}")
             return None
     
     def verify_token(self, token: str) -> TokenData:
@@ -490,3 +522,76 @@ class AuthService:
             await self.audit_logs_collection.insert_one(audit_log.dict(by_alias=True))
         except Exception as e:
             logger.error(f"Failed to log audit event: {str(e)}")
+    
+    def check_permission(self, user: User, permission: str) -> bool:
+        """Check if user has specific permission"""
+        from .models import ROLE_PERMISSIONS, UserRole
+        
+        # Admin and Owner have all permissions
+        if user.role in (UserRole.ADMIN, UserRole.OWNER):
+            return True
+        
+        # Get role-based permissions
+        role_perms = ROLE_PERMISSIONS.get(user.role, [])
+        
+        # Check for wildcard permission
+        if "*" in role_perms:
+            return True
+        
+        # Check specific permission
+        return permission in role_perms
+    
+    def get_user_permissions(self, user: User) -> List[str]:
+        """Get all permissions for a user"""
+        from .models import ROLE_PERMISSIONS
+        
+        role_perms = ROLE_PERMISSIONS.get(user.role, [])
+        
+        if "*" in role_perms:
+            return ["*"]
+        
+        return list(role_perms)
+    
+    async def create_default_admin(self):
+        """Create default admin user if none exists"""
+        try:
+            await self.initialize()
+            
+            # Check if any admin exists
+            from .models import UserRole
+            admin_exists = await self.users_collection.find_one({"role": UserRole.ADMIN})
+            
+            if not admin_exists:
+                # Create default admin
+                admin_password_hash = self._hash_password("admin123")  # CHANGE THIS!
+                
+                from .models import UserStatus
+                admin_doc = {
+                    "email": "admin@finguard.com",
+                    "company_name": "FinGuard System",
+                    "phone_number": "+254700000000",
+                    "role": UserRole.ADMIN.value,  # Store as string
+                    "password_hash": admin_password_hash,
+                    "status": UserStatus.ACTIVE.value,  # Store as string
+                    "is_active": True,
+                    "email_verified": True,
+                    "phone_verified": True,
+                    "created_at": datetime.now(),
+                    "updated_at": datetime.now(),
+                    "failed_login_attempts": 0
+                }
+                
+                await self.users_collection.insert_one(admin_doc)
+                logger.info("✅ Default admin user created: admin@finguard.com / admin123")
+                logger.warning("⚠️  IMPORTANT: Change the default admin password immediately!")
+                print("\n✅ Default admin user created successfully!")
+                print(f"   Email: admin@finguard.com")
+                print(f"   Password: admin123")
+                print("\n⚠️  IMPORTANT: Change the default password immediately!")
+            else:
+                logger.info("ℹ️  Admin user already exists, skipping creation")
+                print("\nℹ️  Admin user already exists in the database")
+                
+        except Exception as e:
+            logger.error(f"Error creating default admin: {str(e)}")
+            raise

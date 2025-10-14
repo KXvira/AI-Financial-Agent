@@ -157,6 +157,14 @@ except ImportError as e:
     print(f"❌ Receipt Generation router import failed: {e}")
     receipts_router = None
 
+# Import admin router (User Management & System Administration)
+try:
+    from admin.router import router as admin_router
+    print("✅ Admin router imported successfully")
+except ImportError as e:
+    print(f"❌ Admin router import failed: {e}")
+    admin_router = None
+
 # Flag to track if all imports were successful
 all_imports_successful = all([
     auth_router is not None,
@@ -254,6 +262,10 @@ if automation_router:
 if receipts_router:
     app.include_router(receipts_router)
     print("✅ Receipt Generation router included in app")
+
+if admin_router:
+    app.include_router(admin_router)
+    print("✅ Admin router included in app")
     
 # Initialize database connection and state (if database was imported)
 if Database:

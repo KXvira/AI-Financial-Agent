@@ -3,7 +3,7 @@ Authentication module for JWT-based user management
 """
 
 from .models import (
-    UserRole, UserStatus, UserBase, UserCreate, UserLogin, 
+    UserRole, UserStatus, UserBase, UserCreate, UserLogin, UserUpdate,
     User, UserProfile, Token, TokenData, PasswordReset, 
     PasswordChange, AuditLog
 )
@@ -18,7 +18,7 @@ from .router import router as auth_router
 
 __all__ = [
     # Models
-    "UserRole", "UserStatus", "UserBase", "UserCreate", "UserLogin",
+    "UserRole", "UserStatus", "UserBase", "UserCreate", "UserLogin", "UserUpdate",
     "User", "UserProfile", "Token", "TokenData", "PasswordReset",
     "PasswordChange", "AuditLog",
     

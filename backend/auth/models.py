@@ -8,9 +8,11 @@ from enum import Enum
 
 class UserRole(str, Enum):
     """User roles for role-based access control"""
-    OWNER = "owner"
-    ACCOUNTANT = "accountant" 
-    VIEWER = "viewer"
+    ADMIN = "admin"          # System administrator - full access
+    MANAGER = "manager"      # Manager - can manage users and view all data
+    OWNER = "owner"          # Business owner - full access to own company
+    ACCOUNTANT = "accountant" # Accountant - create/edit financial records
+    VIEWER = "viewer"        # Viewer - read-only access
 
 class UserStatus(str, Enum):
     """User account status"""
@@ -57,6 +59,22 @@ class UserLogin(BaseModel):
             }
         }
 
+class UserUpdate(BaseModel):
+    """User update model for admin operations"""
+    company_name: Optional[str] = None
+    phone_number: Optional[str] = None
+    role: Optional[UserRole] = None
+    status: Optional[UserStatus] = None
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "company_name": "Updated Company Name",
+                "role": "accountant",
+                "status": "active"
+            }
+        }
+
 class User(UserBase):
     """Complete user model"""
     id: Optional[str] = Field(None, alias="_id")
@@ -76,6 +94,39 @@ class User(UserBase):
         json_encoders = {
             datetime: lambda dt: dt.isoformat()
         }
+
+
+# Role-based permissions mapping
+ROLE_PERMISSIONS = {
+    UserRole.ADMIN: ["*"],  # All permissions - system administrator
+    UserRole.OWNER: ["*"],  # All permissions - business owner (same as admin)
+    UserRole.MANAGER: [
+        "users.view", "users.create", "users.edit", "users.delete",
+        "reports.view", "reports.generate", "reports.schedule",
+        "invoices.view", "invoices.create", "invoices.edit", "invoices.delete",
+        "receipts.view", "receipts.create", "receipts.edit", "receipts.delete",
+        "payments.view", "payments.create", "payments.edit", "payments.delete",
+        "customers.view", "customers.create", "customers.edit", "customers.delete",
+        "dashboard.view", "settings.view", "settings.edit",
+        "activity_logs.view", "audit.view", "system.view"
+    ],
+    UserRole.ACCOUNTANT: [
+        "invoices.create", "invoices.edit", "invoices.view",
+        "receipts.create", "receipts.edit", "receipts.view",
+        "payments.create", "payments.view", "payments.edit",
+        "customers.view", "customers.edit",
+        "reports.view", "reports.generate",
+        "dashboard.view"
+    ],
+    UserRole.VIEWER: [
+        "dashboard.view",
+        "reports.view",
+        "invoices.view",
+        "receipts.view",
+        "payments.view",
+        "customers.view"
+    ]
+}
 
 class UserProfile(BaseModel):
     """User profile for responses"""
