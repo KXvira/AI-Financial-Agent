@@ -110,7 +110,10 @@ export default function ReceiptsPage() {
     }
   };
 
-  const formatCurrency = (amount: number) => {
+  const formatCurrency = (amount: number | undefined) => {
+    if (amount === undefined || amount === null) {
+      return 'KES 0.00';
+    }
     return `KES ${amount.toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
@@ -186,13 +189,13 @@ export default function ReceiptsPage() {
             <div className="bg-white rounded-lg shadow p-6">
               <div className="text-sm font-medium text-gray-600">Payment Receipts</div>
               <div className="text-2xl font-bold text-blue-600 mt-2">
-                {stats.receipts_by_type.payment || 0}
+                {stats?.receipts_by_type?.payment || 0}
               </div>
             </div>
             <div className="bg-white rounded-lg shadow p-6">
               <div className="text-sm font-medium text-gray-600">Invoice Receipts</div>
               <div className="text-2xl font-bold text-purple-600 mt-2">
-                {stats.receipts_by_type.invoice || 0}
+                {stats?.receipts_by_type?.invoice || 0}
               </div>
             </div>
           </div>

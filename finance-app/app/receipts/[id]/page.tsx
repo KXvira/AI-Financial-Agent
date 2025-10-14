@@ -140,7 +140,10 @@ export default function ReceiptDetailPage({ params }: { params: { id: string } }
     }
   };
 
-  const formatCurrency = (amount: number) => {
+  const formatCurrency = (amount: number | undefined) => {
+    if (amount === undefined || amount === null) {
+      return 'KES 0.00';
+    }
     return `KES ${amount.toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
