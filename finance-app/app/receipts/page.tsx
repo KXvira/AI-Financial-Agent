@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Navbar from '@/components/Navbar';
 
 interface Receipt {
   _id: string;
@@ -13,7 +12,13 @@ interface Receipt {
     phone: string;
     email?: string;
   };
-  total: number;
+  total?: number;
+  tax_breakdown?: {
+    subtotal: number;
+    vat_rate: number;
+    vat_amount: number;
+    total: number;
+  };
   payment_method: string;
   status: string;
   generated_at: string;
@@ -68,7 +73,7 @@ export default function ReceiptsPage() {
 
   const fetchStats = async () => {
     try {
-      const response = await fetch('http://localhost:8000/receipts/statistics');
+      const response = await fetch('http://localhost:8000/receipts/statistics/summary');
       const data = await response.json();
       setStats(data);
     } catch (err) {
@@ -162,8 +167,6 @@ export default function ReceiptsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
@@ -321,7 +324,7 @@ export default function ReceiptsPage() {
                         {getTypeBadge(receipt.receipt_type)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {formatCurrency(receipt.total)}
+                        {formatCurrency(receipt.total || receipt.tax_breakdown?.total)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {receipt.payment_method.toUpperCase()}

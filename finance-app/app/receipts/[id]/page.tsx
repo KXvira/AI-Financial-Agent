@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Navbar from '@/components/Navbar';
 import { EmailSetupModal } from '@/components/EmailSetupModal';
 import { checkEmailConfig } from '@/utils/checkEmailConfig';
 
@@ -20,19 +19,26 @@ interface Receipt {
     description: string;
     quantity: number;
     unit_price: number;
-    amount: number;
+    total: number;
     tax_rate?: number;
     tax_amount?: number;
   }>;
-  subtotal: number;
-  tax_total: number;
-  total: number;
+  subtotal?: number;
+  tax_total?: number;
+  total?: number;
+  tax_breakdown?: {
+    subtotal: number;
+    vat_rate: number;
+    vat_amount: number;
+    total: number;
+  };
   payment_method: string;
   payment_reference?: string;
   status: string;
   generated_at: string;
   pdf_path?: string;
   qr_code?: string;
+  qr_code_data?: string;
   notes?: string;
   metadata?: any;
 }
@@ -160,7 +166,6 @@ export default function ReceiptDetailPage({ params }: { params: { id: string } }
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Navbar />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="text-center">
             <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -174,7 +179,6 @@ export default function ReceiptDetailPage({ params }: { params: { id: string } }
   if (error || !receipt) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Navbar />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="text-center text-red-600">
             {error || 'Receipt not found'}
@@ -186,8 +190,6 @@ export default function ReceiptDetailPage({ params }: { params: { id: string } }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8 flex justify-between items-center">
@@ -295,11 +297,11 @@ export default function ReceiptDetailPage({ params }: { params: { id: string } }
                   <div key={index} className="border-b border-gray-200 pb-3 last:border-0">
                     <div className="flex justify-between mb-1">
                       <span className="text-sm font-medium text-gray-900">{item.description}</span>
-                      <span className="text-sm font-medium text-gray-900">{formatCurrency(item.amount)}</span>
+                      <span className="text-sm font-medium text-gray-900">{formatCurrency(item.total)}</span>
                     </div>
                     <div className="flex justify-between text-xs text-gray-500">
                       <span>{item.quantity} × {formatCurrency(item.unit_price)}</span>
-                      {item.tax_rate && <span>VAT: {item.tax_rate}%</span>}
+                      {item.tax_rate && <span>VAT: {(item.tax_rate * 100).toFixed(0)}%</span>}
                     </div>
                   </div>
                 ))}
@@ -308,15 +310,15 @@ export default function ReceiptDetailPage({ params }: { params: { id: string } }
               <div className="mt-4 pt-4 border-t border-gray-200 space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Subtotal:</span>
-                  <span className="text-gray-900">{formatCurrency(receipt.subtotal)}</span>
+                  <span className="text-gray-900">{formatCurrency(receipt.subtotal || receipt.tax_breakdown?.subtotal)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">VAT (16%):</span>
-                  <span className="text-gray-900">{formatCurrency(receipt.tax_total)}</span>
+                  <span className="text-gray-600">VAT ({receipt.tax_breakdown?.vat_rate ? (receipt.tax_breakdown.vat_rate * 100).toFixed(0) : '16'}%):</span>
+                  <span className="text-gray-900">{formatCurrency(receipt.tax_total || receipt.tax_breakdown?.vat_amount)}</span>
                 </div>
                 <div className="flex justify-between text-lg font-bold">
                   <span className="text-gray-900">Total:</span>
-                  <span className="text-green-600">{formatCurrency(receipt.total)}</span>
+                  <span className="text-green-600">{formatCurrency(receipt.total || receipt.tax_breakdown?.total)}</span>
                 </div>
               </div>
             </div>
