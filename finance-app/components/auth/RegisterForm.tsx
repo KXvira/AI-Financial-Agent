@@ -211,13 +211,22 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
         <div className="mt-6 text-center">
           <p className="text-gray-600">
             Already have an account?{' '}
-            <button
-              onClick={onSwitchToLogin}
-              className="text-blue-600 hover:text-blue-700 font-medium"
-              disabled={loading}
-            >
-              Sign in here
-            </button>
+            {onSwitchToLogin ? (
+              <button
+                onClick={onSwitchToLogin}
+                className="text-blue-600 hover:text-blue-700 font-medium"
+                disabled={loading}
+              >
+                Sign in here
+              </button>
+            ) : (
+              <a
+                href="/auth/login"
+                className="text-blue-600 hover:text-blue-700 font-medium"
+              >
+                Sign in here
+              </a>
+            )}
           </p>
         </div>
       </div>

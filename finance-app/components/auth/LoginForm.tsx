@@ -161,13 +161,22 @@ export default function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormPr
         <div className="mt-6 text-center">
           <p className="text-gray-600">
             Don't have an account?{' '}
-            <button
-              onClick={onSwitchToRegister}
-              className="text-blue-600 hover:text-blue-700 font-medium"
-              disabled={loading}
-            >
-              Sign up here
-            </button>
+            {onSwitchToRegister ? (
+              <button
+                onClick={onSwitchToRegister}
+                className="text-blue-600 hover:text-blue-700 font-medium"
+                disabled={loading}
+              >
+                Sign up here
+              </button>
+            ) : (
+              <a
+                href="/auth/register"
+                className="text-blue-600 hover:text-blue-700 font-medium"
+              >
+                Sign up here
+              </a>
+            )}
           </p>
         </div>
       </div>

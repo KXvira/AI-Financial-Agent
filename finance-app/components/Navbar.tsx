@@ -125,7 +125,7 @@ export default function Navbar() {
                         Profile Settings
                       </Link>
                       
-                      {user.role === 'owner' && (
+                      {(user.role === 'owner' || user.role === 'admin') && (
                         <Link
                           href="/admin"
                           className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
@@ -151,13 +151,13 @@ export default function Navbar() {
               <div className="flex items-center space-x-3">
                 <Link
                   href="/auth/login"
-                  className="text-gray-600 hover:text-gray-900 text-sm font-medium"
+                  className="text-gray-600 hover:text-gray-900 text-sm font-medium hover:underline transition-all"
                 >
                   Sign In
                 </Link>
                 <Link
-                  href="/auth/login"
-                  className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors"
+                  href="/auth/register"
+                  className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700 hover:shadow-md transition-all transform hover:scale-105 active:scale-95"
                 >
                   Get Started
                 </Link>
