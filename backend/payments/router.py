@@ -28,8 +28,8 @@ async def get_payments(
         db_instance = Database.get_instance()
         db = db_instance.db
         
-        # Build query - only get payment type transactions
-        query = {"type": "payment"}
+        # Build query for payments collection
+        query = {}
         
         # Add status filter
         if status_filter:
@@ -38,30 +38,54 @@ async def get_payments(
         # Add search filter
         if search:
             query["$or"] = [
-                {"mpesa_reference": {"$regex": search, "$options": "i"}},
-                {"customer_name": {"$regex": search, "$options": "i"}},
-                {"invoice_number": {"$regex": search, "$options": "i"}},
-                {"description": {"$regex": search, "$options": "i"}}
+                {"transaction_reference": {"$regex": search, "$options": "i"}},
+                {"customer_id": {"$regex": search, "$options": "i"}},
+                {"invoice_id": {"$regex": search, "$options": "i"}},
+                {"notes": {"$regex": search, "$options": "i"}}
             ]
         
-        # Get transactions
-        cursor = db.transactions.find(query).sort("created_at", -1).limit(limit)
+        # Get payments
+        cursor = db.payments.find(query).sort("payment_date", -1).limit(limit)
         
         payments = []
         async for doc in cursor:
+            # Get customer name
+            customer_name = "Unknown"
+            if doc.get('customer_id'):
+                customer = await db.customers.find_one({"customer_id": doc.get('customer_id')})
+                if customer:
+                    customer_name = customer.get('name', 'Unknown')
+            
+            # Get invoice number
+            invoice_number = ""
+            if doc.get('invoice_id'):
+                invoice = await db.invoices.find_one({"invoice_id": doc.get('invoice_id')})
+                if invoice:
+                    invoice_number = invoice.get('invoice_number', '')
+            
+            # Parse payment date
+            payment_date = doc.get('payment_date')
+            if isinstance(payment_date, str):
+                try:
+                    payment_date = datetime.fromisoformat(payment_date.replace('Z', '+00:00'))
+                except:
+                    payment_date = datetime.utcnow()
+            elif not isinstance(payment_date, datetime):
+                payment_date = datetime.utcnow()
+            
             payments.append({
                 "id": str(doc.get('_id')),
-                "reference": doc.get('mpesa_reference', str(doc.get('_id'))),
-                "client": doc.get('customer_name', 'Unknown'),
-                "date": doc.get('created_at', datetime.utcnow()).strftime("%Y-%m-%d"),
+                "reference": doc.get('transaction_reference', str(doc.get('_id'))),
+                "client": customer_name,
+                "date": payment_date.strftime("%Y-%m-%d"),
                 "amount": f"KES {doc.get('amount', 0):,.2f}",
                 "amountRaw": doc.get('amount', 0),
                 "method": doc.get('payment_method', 'M-Pesa').title(),
                 "status": doc.get('status', 'pending').capitalize(),
-                "invoiceNumber": doc.get('invoice_number', ''),
-                "phoneNumber": doc.get('phone_number', ''),
-                "description": doc.get('description', ''),
-                "created_at": doc.get('created_at', datetime.utcnow()).isoformat(),
+                "invoiceNumber": invoice_number,
+                "phoneNumber": "",  # Not in normalized schema
+                "description": doc.get('notes', ''),
+                "created_at": payment_date.isoformat(),
             })
         
         return {
@@ -94,9 +118,8 @@ async def get_payment_by_reference(reference: str) -> Dict[str, Any]:
         db = db_instance.db
         
         # Find payment by reference
-        doc = await db.transactions.find_one({
-            "type": "payment",
-            "mpesa_reference": reference
+        doc = await db.payments.find_one({
+            "transaction_reference": reference
         })
         
         if not doc:
@@ -105,11 +128,28 @@ async def get_payment_by_reference(reference: str) -> Dict[str, Any]:
                 detail="Payment not found"
             )
         
+        # Get customer name
+        customer_name = "Unknown"
+        if doc.get('customer_id'):
+            customer = await db.customers.find_one({"customer_id": doc.get('customer_id')})
+            if customer:
+                customer_name = customer.get('name', 'Unknown')
+        
+        # Parse payment date
+        payment_date = doc.get('payment_date')
+        if isinstance(payment_date, str):
+            try:
+                payment_date = datetime.fromisoformat(payment_date.replace('Z', '+00:00'))
+            except:
+                payment_date = datetime.utcnow()
+        elif not isinstance(payment_date, datetime):
+            payment_date = datetime.utcnow()
+        
         payment = {
             "id": str(doc.get('_id')),
-            "reference": doc.get('mpesa_reference', str(doc.get('_id'))),
-            "client": doc.get('customer_name', 'Unknown'),
-            "date": doc.get('created_at', datetime.utcnow()).strftime("%Y-%m-%d"),
+            "reference": doc.get('transaction_reference', str(doc.get('_id'))),
+            "client": customer_name,
+            "date": payment_date.strftime("%Y-%m-%d"),
             "amount": doc.get('amount', 0),
             "currency": doc.get('currency', 'KES'),
             "method": doc.get('payment_method', 'M-Pesa'),
@@ -151,53 +191,59 @@ async def get_payment_stats() -> Dict[str, Any]:
         start_date = end_date - timedelta(days=30)
         
         # Get total payments
-        total_payments = await db.transactions.count_documents({"type": "payment"})
+        total_payments = await db.payments.count_documents({})
         
         # Get completed payments
-        completed_count = await db.transactions.count_documents({
-            "type": "payment",
+        completed_count = await db.payments.count_documents({
             "status": {"$in": ["completed", "success"]}
         })
         
         # Get pending payments
-        pending_count = await db.transactions.count_documents({
-            "type": "payment",
+        pending_count = await db.payments.count_documents({
             "status": "pending"
         })
         
         # Calculate totals
         completed_pipeline = [
             {"$match": {
-                "type": "payment",
                 "status": {"$in": ["completed", "success"]}
             }},
             {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
         ]
-        completed_result = await db.transactions.aggregate(completed_pipeline).to_list(None)
+        completed_result = await db.payments.aggregate(completed_pipeline).to_list(None)
         completed_total = completed_result[0]['total'] if completed_result else 0.0
         
-        # Monthly totals
+        # Monthly totals - payments in last 30 days
         monthly_pipeline = [
             {"$match": {
-                "type": "payment",
-                "status": {"$in": ["completed", "success"]},
-                "created_at": {"$gte": start_date}
+                "status": {"$in": ["completed", "success"]}
             }},
             {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
         ]
-        monthly_result = await db.transactions.aggregate(monthly_pipeline).to_list(None)
+        monthly_result = await db.payments.aggregate(monthly_pipeline).to_list(None)
         monthly_total = monthly_result[0]['total'] if monthly_result else 0.0
         
-        # Get matched vs unmatched (payments with invoice_id vs without)
-        matched_count = await db.transactions.count_documents({
-            "type": "payment",
-            "invoice_id": {"$exists": True, "$ne": None}
-        })
+        # Get AI matching statistics from summary collection
+        ai_summary = await db.ai_matching_summary.find_one({})
         
-        unmatched_count = total_payments - matched_count
-        
-        # Calculate AI accuracy (matched / total * 100)
-        ai_accuracy = round((matched_count / total_payments * 100), 1) if total_payments > 0 else 0
+        if ai_summary:
+            matched_count = ai_summary.get('correct_matches', 0)
+            unmatched_count = ai_summary.get('unmatched_count', 0)
+            ai_accuracy = ai_summary.get('ai_accuracy', 0.0)
+        else:
+            # Fallback: Get matched vs unmatched from payments
+            matched_count = await db.payments.count_documents({
+                "ai_matched": True,
+                "match_status": "correct"
+            })
+            
+            unmatched_count = await db.payments.count_documents({
+                "ai_matched": False
+            })
+            
+            # Calculate AI accuracy
+            total_ai_matched = await db.payments.count_documents({"ai_matched": True})
+            ai_accuracy = round((matched_count / total_ai_matched * 100), 2) if total_ai_matched > 0 else 0.0
         
         return {
             "totalPayments": total_payments,

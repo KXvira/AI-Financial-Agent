@@ -7,11 +7,15 @@ interface Receipt {
   _id: string;
   receipt_number: string;
   receipt_type: string;
-  customer: {
+  customer?: {
     name: string;
     phone: string;
     email?: string;
   };
+  customer_name?: string;
+  customer_phone?: string;
+  customer_email?: string;
+  amount?: number;
   total?: number;
   tax_breakdown?: {
     subtotal: number;
@@ -21,7 +25,8 @@ interface Receipt {
   };
   payment_method: string;
   status: string;
-  generated_at: string;
+  generated_at?: string;
+  issued_date?: string;
   pdf_path?: string;
 }
 
@@ -317,14 +322,14 @@ export default function ReceiptsPage() {
                         </button>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">{receipt.customer.name}</div>
-                        <div className="text-sm text-gray-500">{receipt.customer.phone}</div>
+                        <div className="text-sm font-medium text-gray-900">{receipt.customer_name || receipt.customer?.name || 'Unknown'}</div>
+                        <div className="text-sm text-gray-500">{receipt.customer_phone || receipt.customer?.phone || ''}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         {getTypeBadge(receipt.receipt_type)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {formatCurrency(receipt.total || receipt.tax_breakdown?.total)}
+                        {formatCurrency(receipt.amount || receipt.total || receipt.tax_breakdown?.total)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {receipt.payment_method.toUpperCase()}
@@ -333,7 +338,7 @@ export default function ReceiptsPage() {
                         {getStatusBadge(receipt.status)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {formatDate(receipt.generated_at)}
+                        {formatDate(receipt.issued_date || receipt.generated_at || '')}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <button
@@ -343,7 +348,7 @@ export default function ReceiptsPage() {
                         >
                           📥
                         </button>
-                        {receipt.customer.email && (
+                        {(receipt.customer_email || receipt.customer?.email) && (
                           <button
                             onClick={() => sendEmail(receipt._id)}
                             className="text-green-600 hover:text-green-900 mr-3"
