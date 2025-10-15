@@ -23,8 +23,13 @@ interface Customer {
   name: string;
   email: string;
   phone: string;
-  address: string;
-  city: string;
+  address: string | {
+    street: string;
+    city: string;
+    postal_code: string;
+    country: string;
+  };
+  city: string | null;
   country: string;
 }
 
@@ -130,6 +135,12 @@ export default function CustomerStatementPage() {
       if (!response.ok) throw new Error("Failed to fetch statement");
       
       const data = await response.json();
+      
+      // Check if backend returned an error
+      if (data.error) {
+        throw new Error(data.error);
+      }
+      
       setStatement(data);
     } catch (err: any) {
       setError(err.message);
@@ -325,7 +336,10 @@ export default function CustomerStatementPage() {
                     {statement.customer.address && (
                       <div className="flex items-center text-gray-600">
                         <MapPin className="w-4 h-4 mr-2" />
-                        {statement.customer.address}, {statement.customer.city}, {statement.customer.country}
+                        {typeof statement.customer.address === 'string' 
+                          ? `${statement.customer.address}, ${statement.customer.city}, ${statement.customer.country}`
+                          : `${statement.customer.address.street}, ${statement.customer.address.city}, ${statement.customer.address.country}`
+                        }
                       </div>
                     )}
                   </div>

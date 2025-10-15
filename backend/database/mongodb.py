@@ -54,6 +54,10 @@ class Database:
         self.reconciliation = self.db[self.config.reconciliation_collection]
         self.analytics = self.db[self.config.analytics_collection]
         
+        # Normalized collections
+        self.payments = self.db["payments"]  # Normalized payments collection
+        self.invoice_items = self.db["invoice_items"]  # Normalized invoice items
+        
         # Phase 4: Automation collections
         self.scheduled_reports = self.db[self.config.scheduled_reports_collection]
         self.report_templates = self.db[self.config.report_templates_collection]
