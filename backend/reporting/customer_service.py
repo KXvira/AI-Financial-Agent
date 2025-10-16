@@ -254,7 +254,14 @@ class CustomerStatementService:
         }
         
         for invoice in invoices:
-            outstanding = invoice.get("total_amount", 0) - invoice.get("amount_paid", 0)
+            # Calculate invoice total from invoice_items (normalized schema)
+            invoice_id = invoice.get("invoice_id")
+            items = await self.db.invoice_items.find({"invoice_id": invoice_id}).to_list(length=None)
+            # Calculate total from items - use "line_total" field
+            calculated_total = sum(item.get("line_total", item.get("total", 0)) for item in items)
+            invoice_total = calculated_total if calculated_total > 0 else invoice.get("total", invoice.get("total_amount", 0))
+            
+            outstanding = invoice_total - invoice.get("amount_paid", 0)
             due_date = invoice.get("due_date")
             
             if not due_date:

@@ -296,6 +296,7 @@ class ReportingService:
             as_of_date = datetime.now().strftime("%Y-%m-%d")
         
         logger.info(f"Generating AR aging as of {as_of_date}")
+        logger.info(f"Filters: {filters}")
         
         if filters is None:
             filters = {}
@@ -315,8 +316,50 @@ class ReportingService:
         
         outstanding_invoices = await self.db.invoices.find(outstanding_match).to_list(None)
         
-        total_outstanding = sum(inv.get("amount", 0) for inv in outstanding_invoices)
+        # Calculate invoice totals from invoice_items collection (normalized schema)
+        # and populate customer names if missing
+        total_outstanding = 0.0
+        for invoice in outstanding_invoices:
+            invoice_id = invoice.get("invoice_id")
+            items = await self.db.invoice_items.find({"invoice_id": invoice_id}).to_list(length=None)
+            # Calculate total from items - use "line_total" field
+            calculated_total = sum(item.get("line_total", item.get("total", 0)) for item in items)
+            invoice["calculated_total"] = calculated_total if calculated_total > 0 else invoice.get("total", invoice.get("amount", 0))
+            total_outstanding += invoice["calculated_total"]
+            
+            # Populate customer_name if missing (Priority 2 fix)
+            if not invoice.get("customer_name") or invoice.get("customer_name") == "Unknown":
+                customer_id = invoice.get("customer_id")
+                if customer_id:
+                    try:
+                        # Try to find customer by UUID string (not ObjectId)
+                        # First try customer_id field (string UUID)
+                        customer = await self.db.customers.find_one({"customer_id": customer_id})
+                        
+                        # If not found, try _id field
+                        if not customer:
+                            try:
+                                from bson import ObjectId
+                                customer = await self.db.customers.find_one({"_id": ObjectId(customer_id)})
+                            except:
+                                pass  # customer_id is not a valid ObjectId, skip
+                        
+                        if customer:
+                            # Get customer name from various possible fields
+                            customer_name = (
+                                customer.get("name") or 
+                                customer.get("customer_name") or 
+                                customer.get("company_name") or
+                                f"{customer.get('first_name', '')} {customer.get('last_name', '')}".strip() or
+                                "Unknown"
+                            )
+                            invoice["customer_name"] = customer_name
+                    except Exception as e:
+                        logger.debug(f"Could not fetch customer for invoice {invoice.get('invoice_number')}: {e}")
+                        # Keep as Unknown, don't spam logs
+        
         total_invoices = len(outstanding_invoices)
+        logger.info(f"Found {total_invoices} outstanding invoices with total: {total_outstanding:,.2f}")
         
         # ========== CREATE AGING BUCKETS ==========
         
@@ -335,17 +378,23 @@ class ReportingService:
             
             for invoice in outstanding_invoices:
                 # Calculate days outstanding
-                issue_date_str = invoice.get("issue_date", "")
+                issue_date_str = invoice.get("issue_date", invoice.get("date", ""))
                 if not issue_date_str:
-                    continue
+                    # If no issue_date, try created_at or use current date
+                    issue_date_str = invoice.get("created_at", as_of_date)
                 
                 try:
-                    # Parse date string (format: "2024-10-12 19:46:20.186000")
+                    # Parse date string - handle multiple formats
                     from dateutil import parser as date_parser
-                    invoice_date = date_parser.parse(issue_date_str)
-                except:
-                    # Skip if date parsing fails
-                    continue
+                    if isinstance(issue_date_str, datetime):
+                        invoice_date = issue_date_str
+                    else:
+                        # Try parsing with dateutil (handles most formats)
+                        invoice_date = date_parser.parse(str(issue_date_str))
+                except Exception as e:
+                    # If parsing fails, log and use as_of_date (0 days outstanding)
+                    logger.warning(f"Failed to parse date '{issue_date_str}' for invoice {invoice.get('invoice_number', 'unknown')}: {e}")
+                    invoice_date = as_of_dt
                 
                 days_outstanding = (as_of_dt - invoice_date).days
                 
@@ -362,13 +411,23 @@ class ReportingService:
                     in_bucket = min_days <= days_outstanding <= max_days
                 
                 if in_bucket:
-                    amount = invoice.get("amount", 0)
+                    # Use calculated_total from invoice_items
+                    amount = invoice.get("calculated_total", invoice.get("amount", 0))
+                    
+                    # Format date for display
+                    if isinstance(invoice_date, datetime):
+                        date_issued_display = invoice_date.strftime("%Y-%m-%d")
+                    elif isinstance(issue_date_str, str) and issue_date_str:
+                        date_issued_display = issue_date_str.split()[0] if ' ' in issue_date_str else issue_date_str
+                    else:
+                        date_issued_display = "N/A"
+                    
                     bucket_invoices.append({
                         "invoice_id": str(invoice.get("_id")),
                         "invoice_number": invoice.get("invoice_number", "N/A"),
                         "customer_name": invoice.get("customer_name", "Unknown"),
                         "amount": round(amount, 2),
-                        "date_issued": issue_date_str.split()[0] if issue_date_str else "N/A",
+                        "date_issued": date_issued_display,
                         "days_outstanding": days_outstanding
                     })
                     bucket_total += amount
@@ -389,6 +448,7 @@ class ReportingService:
                 invoices=bucket_invoices[:10]  # Limit to top 10
             )
             
+            logger.info(f"Bucket '{bucket_def['name']}': {len(bucket_invoices)} invoices, Total: {bucket_total:,.2f} ({percentage:.1f}%)")
             buckets.append(bucket)
         
         # ========== CALCULATE METRICS ==========
@@ -413,7 +473,8 @@ class ReportingService:
         customer_totals = {}
         for invoice in outstanding_invoices:
             customer_name = invoice.get("customer_name", "Unknown")
-            amount = invoice.get("amount", 0)
+            # Use calculated_total from invoice_items
+            amount = invoice.get("calculated_total", invoice.get("amount", 0))
             
             if customer_name not in customer_totals:
                 customer_totals[customer_name] = {
