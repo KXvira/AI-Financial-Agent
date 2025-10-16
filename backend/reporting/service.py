@@ -630,20 +630,20 @@ class ReportingService:
         )
         overdue_invoices = await self.db.invoices.count_documents({"status": "overdue"})
         
-        # Total revenue (from paid invoices)
+        # Total revenue (from paid invoices) - use total_amount field
         paid_revenue_pipeline = [
             {"$match": {"status": "paid"}},
-            {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
+            {"$group": {"_id": None, "total": {"$sum": "$total_amount"}}}
         ]
         paid_revenue_result = await self.db.invoices.aggregate(paid_revenue_pipeline).to_list(None)
-        total_revenue = paid_revenue_result[0]["total"] if paid_revenue_result else 0.0
+        total_revenue = paid_revenue_result[0]["total"] if paid_revenue_result and paid_revenue_result[0].get("total") else 0.0
         
-        # Total invoiced amount (all invoices)
+        # Total invoiced amount (all invoices) - use total_amount field
         total_invoiced_pipeline = [
-            {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
+            {"$group": {"_id": None, "total": {"$sum": "$total_amount"}}}
         ]
         total_invoiced_result = await self.db.invoices.aggregate(total_invoiced_pipeline).to_list(None)
-        total_invoiced = total_invoiced_result[0]["total"] if total_invoiced_result else 0.0
+        total_invoiced = total_invoiced_result[0]["total"] if total_invoiced_result and total_invoiced_result[0].get("total") else 0.0
         
         # Outstanding amount (unpaid invoices)
         total_outstanding = total_invoiced - total_revenue
@@ -676,23 +676,43 @@ class ReportingService:
         
         # ========== EXPENSE METRICS ==========
         
-        # Total expenses
-        expense_pipeline = [
-            {"$match": {"type": "expense"}},
-            {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
-        ]
-        expense_result = await self.db.transactions.aggregate(expense_pipeline).to_list(None)
-        total_expenses = expense_result[0]["total"] if expense_result else 0.0
+        # Total expenses from receipts collection (same logic as expenses API and cash flow)
+        expense_match = {
+            "$or": [
+                {"receipt_type": "expense"},
+                {"receipt_type": "refund"},
+                {"ocr_data.extracted_data.total_amount": {"$exists": True}}
+            ]
+        }
+        
+        expense_receipts = await self.db.db["receipts"].find(expense_match).to_list(None)
+        
+        total_expenses = 0.0
+        expense_categories = {}
+        
+        for receipt in expense_receipts:
+            amount = 0.0
+            category = "Other"
+            
+            # Get amount (same priority as expenses service)
+            if receipt.get("ocr_data"):
+                amount = receipt["ocr_data"]["extracted_data"].get("total_amount", 0)
+                category = receipt["ocr_data"]["extracted_data"].get("merchant_name", "Other")
+            elif receipt.get("tax_breakdown"):
+                tax_breakdown = receipt["tax_breakdown"]
+                amount = tax_breakdown.get("subtotal", 0) + tax_breakdown.get("vat_amount", 0)
+                category = receipt.get("category", "Other")
+            elif receipt.get("line_items"):
+                line_items = receipt["line_items"]
+                amount = sum(item.get("total", 0) for item in line_items)
+                category = receipt.get("category", "Other")
+            
+            if amount > 0:
+                total_expenses += amount
+                expense_categories[category] = expense_categories.get(category, 0) + amount
         
         # Top expense category
-        category_pipeline = [
-            {"$match": {"type": "expense"}},
-            {"$group": {"_id": "$category", "total": {"$sum": "$amount"}}},
-            {"$sort": {"total": -1}},
-            {"$limit": 1}
-        ]
-        category_result = await self.db.transactions.aggregate(category_pipeline).to_list(None)
-        top_expense_category = category_result[0]["_id"] if category_result else "N/A"
+        top_expense_category = max(expense_categories, key=expense_categories.get) if expense_categories else "N/A"
         
         # ========== PROFITABILITY METRICS ==========
         
