@@ -248,60 +248,65 @@ class ReportingService:
         
         # ========== CASH OUTFLOWS (Expenses + Refunds) ==========
         
-        # 1. Get expenses from receipts collection
-        # Try both OCR-extracted expenses and regular expense receipts
-        expense_match_ocr = {
-            "ocr_data.extracted_data.total_amount": {"$exists": True}
-        }
-        expense_match_regular = {
-            "receipt_type": "expense"
+        # 1. Get expenses from receipts collection - use same logic as expenses API
+        expense_match = {
+            "$or": [
+                {"receipt_type": "expense"},
+                {"receipt_type": "refund"},
+                {"ocr_data.extracted_data.total_amount": {"$exists": True}}
+            ]
         }
         
         if start_date and end_date:
-            date_filter = {
-                "created_at": {
-                    "$gte": start_dt,
-                    "$lte": end_dt
-                }
+            expense_match["created_at"] = {
+                "$gte": start_dt,
+                "$lte": end_dt
             }
-            expense_match_ocr.update(date_filter)
-            expense_match_regular.update(date_filter)
         
-        # Query OCR expenses
-        ocr_pipeline = [
-            {"$match": expense_match_ocr},
-            {"$group": {
-                "_id": None,
-                "total": {"$sum": "$ocr_data.extracted_data.total_amount"},
-                "count": {"$sum": 1}
-            }}
-        ]
+        logger.info(f"Querying expenses with filter: {expense_match}")
         
-        # Query regular expense receipts (sum from tax_breakdown.subtotal + vat_amount or line items)
-        regular_pipeline = [
-            {"$match": expense_match_regular},
-            {"$group": {
-                "_id": None,
-                "total": {"$sum": {"$add": ["$tax_breakdown.subtotal", "$tax_breakdown.vat_amount"]}},
-                "count": {"$sum": 1}
-            }}
-        ]
+        # Get all expense receipts
+        expense_receipts = await self.db.db["receipts"].find(expense_match).to_list(None)
         
-        ocr_results = await self.db.db["receipts"].aggregate(ocr_pipeline).to_list(None)
-        regular_results = await self.db.db["receipts"].aggregate(regular_pipeline).to_list(None)
+        logger.info(f"Found {len(expense_receipts)} expense receipts")
         
-        ocr_total = round(ocr_results[0]["total"], 2) if ocr_results and ocr_results[0].get("total") else 0.0
-        ocr_count = ocr_results[0]["count"] if ocr_results and ocr_results[0].get("count") else 0
+        # Calculate total by iterating through receipts (same logic as expenses service)
+        total_expenses = 0.0
+        expenses_by_category = {}
         
-        regular_total = round(regular_results[0]["total"], 2) if regular_results and regular_results[0].get("total") else 0.0
-        regular_count = regular_results[0]["count"] if regular_results and regular_results[0].get("count") else 0
+        for receipt in expense_receipts:
+            amount = 0.0
+            
+            # Priority 1: OCR extracted data (most reliable)
+            if receipt.get("ocr_data"):
+                amount = receipt["ocr_data"]["extracted_data"].get("total_amount", 0)
+            
+            # Priority 2: Tax breakdown (for manual receipts)
+            elif receipt.get("tax_breakdown"):
+                tax_breakdown = receipt["tax_breakdown"]
+                amount = tax_breakdown.get("subtotal", 0) + tax_breakdown.get("vat_amount", 0)
+            
+            # Priority 3: Line items (for itemized receipts)
+            elif receipt.get("line_items"):
+                line_items = receipt["line_items"]
+                amount = sum(item.get("total", 0) for item in line_items)
+            
+            if amount > 0:
+                total_expenses += amount
+                
+                # Get category for breakdown
+                category = "Other Expenses"
+                if receipt.get("ocr_data"):
+                    category = receipt["ocr_data"]["extracted_data"].get("merchant_name", "Other Expenses")
+                elif receipt.get("category"):
+                    category = receipt["category"]
+                
+                expenses_by_category[category] = expenses_by_category.get(category, 0) + amount
         
-        total_expenses = ocr_total + regular_total
-        expense_count = ocr_count + regular_count
+        expense_count = len(expense_receipts)
         
-        logger.info(f"Found {ocr_count} OCR expense receipts (Ksh {ocr_total:,.2f})")
-        logger.info(f"Found {regular_count} regular expense receipts (Ksh {regular_total:,.2f})")
         logger.info(f"Total expenses: Ksh {total_expenses:,.2f} from {expense_count} receipts")
+        logger.info(f"Expense categories: {list(expenses_by_category.keys())}")
         
         # 2. Get refunds from payments collection
         refund_match = {
@@ -331,12 +336,10 @@ class ReportingService:
         total_outflows = total_expenses + total_refunds
         outflow_count = expense_count + refund_count
         
-        # Build outflows by category
-        outflows_by_category = {}
-        if total_expenses > 0:
-            outflows_by_category["Expenses"] = total_expenses
+        # Build outflows by category - use expense categories + refunds
+        outflows_by_category = {k: round(v, 2) for k, v in expenses_by_category.items()}
         if total_refunds > 0:
-            outflows_by_category["Refunds"] = total_refunds
+            outflows_by_category["Payment Refunds"] = total_refunds
         
         logger.info(f"Found {expense_count} expense transactions (Ksh {total_expenses:,.2f}) and {refund_count} refunds (Ksh {total_refunds:,.2f})")
         logger.info(f"Total outflows: {total_outflows:,.2f} from {outflow_count} transactions")
