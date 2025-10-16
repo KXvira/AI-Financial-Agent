@@ -40,7 +40,8 @@ export default function ExpenseDashboard() {
         headers.Authorization = `Bearer ${token}`;
       }
 
-      const response = await fetch('http://localhost:8000/api/receipts/demo/summary', {
+      // Use the new expenses API endpoint to fetch real data from database
+      const response = await fetch('http://localhost:8000/api/expenses/summary?days=365&limit=10', {
         method: 'GET',
         headers
       });

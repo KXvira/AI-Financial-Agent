@@ -165,6 +165,14 @@ except ImportError as e:
     print(f"❌ Admin router import failed: {e}")
     admin_router = None
 
+# Import expenses router (Expense Management)
+try:
+    from expenses.router import router as expenses_router
+    print("✅ Expenses router imported successfully")
+except ImportError as e:
+    print(f"❌ Expenses router import failed: {e}")
+    expenses_router = None
+
 # Flag to track if all imports were successful
 all_imports_successful = all([
     auth_router is not None,
@@ -266,6 +274,10 @@ if receipts_router:
 if admin_router:
     app.include_router(admin_router)
     print("✅ Admin router included in app")
+
+if expenses_router:
+    app.include_router(expenses_router)
+    print("✅ Expenses router included in app")
     
 # Initialize database connection and state (if database was imported)
 if Database:

@@ -262,7 +262,20 @@ class OCRService:
             ocr_result_dict = asdict(ocr_result) if hasattr(ocr_result, '__dataclass_fields__') else ocr_result.dict()
             
             update_data = {
+                'receipt_type': 'expense',  # Mark as expense for expenses API
+                'status': 'processed',  # Mark as processed
                 'ocr_result': ocr_result_dict,
+                'ocr_data': {
+                    'extracted_data': {
+                        'total_amount': parsed_data.get('total_amount', 0.0),
+                        'merchant_name': parsed_data.get('vendor_info', {}).get('name', 'Unknown'),
+                        'transaction_date': parsed_data.get('transaction_date'),
+                        'category': ai_data.get('category', 'other'),
+                        'items': parsed_data.get('items', [])
+                    },
+                    'confidence': ocr_result.confidence,
+                    'engine': ocr_result.engine
+                },
                 'ai_extracted_data': ai_data,
                 'processed_at': datetime.now(),
                 'updated_at': datetime.now()

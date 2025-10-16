@@ -199,13 +199,33 @@ class ReportingService:
         if filters is None:
             filters = {}
         
+        # Parse dates
+        start_dt = datetime.fromisoformat(start_date)
+        end_dt = datetime.fromisoformat(end_date)
+        
         # ========== CASH INFLOWS (Payment Transactions) ==========
         
-        # Query for payment transactions
-        inflow_match = {"type": "payment"}
+        # Query for completed payment transactions
+        # Note: The actual MongoDB field values are lowercase (e.g., "completed", "pending")
+        # The API router capitalizes them in responses
+        inflow_match = {
+            "status": {"$in": ["completed", "successful", "paid"]}
+        }
         
-        inflow_count = await self.db.transactions.count_documents(inflow_match)
+        # Add date filter - MongoDB stores payment_date as datetime objects
+        if start_date and end_date:
+            inflow_match["payment_date"] = {
+                "$gte": start_dt,  # Use datetime object, not string
+                "$lte": end_dt
+            }
         
+        logger.info(f"Inflow match query: {inflow_match}")
+        
+        # Use payments collection for inflows
+        inflow_count = await self.db.payments.count_documents(inflow_match)
+        
+        # Sum up amount field (the actual numeric field in MongoDB)
+        # Note: amountRaw is created by the API router, not stored in MongoDB
         inflow_pipeline = [
             {"$match": inflow_match},
             {"$group": {
@@ -214,8 +234,10 @@ class ReportingService:
             }}
         ]
         
-        inflow_result = await self.db.transactions.aggregate(inflow_pipeline).to_list(1)
+        inflow_result = await self.db.payments.aggregate(inflow_pipeline).to_list(1)
         total_inflows = inflow_result[0]["total"] if inflow_result else 0.0
+        
+        logger.info(f"Found {inflow_count} payment transactions with total inflows: {total_inflows:,.2f}")
         
         cash_inflows = CashFlowInflows(
             total_inflows=round(total_inflows, 2),
@@ -224,26 +246,100 @@ class ReportingService:
             transaction_count=inflow_count
         )
         
-        # ========== CASH OUTFLOWS (Expense Transactions) ==========
+        # ========== CASH OUTFLOWS (Expenses + Refunds) ==========
         
-        # Query for expense transactions
-        outflow_match = {"type": "expense"}
+        # 1. Get expenses from receipts collection
+        # Try both OCR-extracted expenses and regular expense receipts
+        expense_match_ocr = {
+            "ocr_data.extracted_data.total_amount": {"$exists": True}
+        }
+        expense_match_regular = {
+            "receipt_type": "expense"
+        }
         
-        outflow_count = await self.db.transactions.count_documents(outflow_match)
+        if start_date and end_date:
+            date_filter = {
+                "created_at": {
+                    "$gte": start_dt,
+                    "$lte": end_dt
+                }
+            }
+            expense_match_ocr.update(date_filter)
+            expense_match_regular.update(date_filter)
         
-        # Group by category
-        outflow_pipeline = [
-            {"$match": outflow_match},
+        # Query OCR expenses
+        ocr_pipeline = [
+            {"$match": expense_match_ocr},
             {"$group": {
-                "_id": "$category",
-                "total": {"$sum": "$amount"}
-            }},
-            {"$sort": {"total": -1}}
+                "_id": None,
+                "total": {"$sum": "$ocr_data.extracted_data.total_amount"},
+                "count": {"$sum": 1}
+            }}
         ]
         
-        outflow_results = await self.db.transactions.aggregate(outflow_pipeline).to_list(None)
-        outflows_by_category = {result["_id"]: round(result["total"], 2) for result in outflow_results}
-        total_outflows = sum(outflows_by_category.values())
+        # Query regular expense receipts (sum from tax_breakdown.subtotal + vat_amount or line items)
+        regular_pipeline = [
+            {"$match": expense_match_regular},
+            {"$group": {
+                "_id": None,
+                "total": {"$sum": {"$add": ["$tax_breakdown.subtotal", "$tax_breakdown.vat_amount"]}},
+                "count": {"$sum": 1}
+            }}
+        ]
+        
+        ocr_results = await self.db.db["receipts"].aggregate(ocr_pipeline).to_list(None)
+        regular_results = await self.db.db["receipts"].aggregate(regular_pipeline).to_list(None)
+        
+        ocr_total = round(ocr_results[0]["total"], 2) if ocr_results and ocr_results[0].get("total") else 0.0
+        ocr_count = ocr_results[0]["count"] if ocr_results and ocr_results[0].get("count") else 0
+        
+        regular_total = round(regular_results[0]["total"], 2) if regular_results and regular_results[0].get("total") else 0.0
+        regular_count = regular_results[0]["count"] if regular_results and regular_results[0].get("count") else 0
+        
+        total_expenses = ocr_total + regular_total
+        expense_count = ocr_count + regular_count
+        
+        logger.info(f"Found {ocr_count} OCR expense receipts (Ksh {ocr_total:,.2f})")
+        logger.info(f"Found {regular_count} regular expense receipts (Ksh {regular_total:,.2f})")
+        logger.info(f"Total expenses: Ksh {total_expenses:,.2f} from {expense_count} receipts")
+        
+        # 2. Get refunds from payments collection
+        refund_match = {
+            "status": {"$in": ["refunded", "Refunded", "failed", "Failed", "returned", "Returned"]}
+        }
+        if start_date and end_date:
+            refund_match["payment_date"] = {
+                "$gte": start_dt,
+                "$lte": end_dt
+            }
+        
+        refund_count = await self.db.payments.count_documents(refund_match)
+        
+        # Calculate refunds using amount field
+        refund_pipeline = [
+            {"$match": refund_match},
+            {"$group": {
+                "_id": None,
+                "total": {"$sum": "$amount"}
+            }}
+        ]
+        
+        refund_result = await self.db.payments.aggregate(refund_pipeline).to_list(1)
+        total_refunds = round(refund_result[0]["total"], 2) if refund_result and refund_result[0].get("total") else 0.0
+        
+        # Combine expenses and refunds
+        total_outflows = total_expenses + total_refunds
+        outflow_count = expense_count + refund_count
+        
+        # Build outflows by category
+        outflows_by_category = {}
+        if total_expenses > 0:
+            outflows_by_category["Expenses"] = total_expenses
+        if total_refunds > 0:
+            outflows_by_category["Refunds"] = total_refunds
+        
+        logger.info(f"Found {expense_count} expense transactions (Ksh {total_expenses:,.2f}) and {refund_count} refunds (Ksh {total_refunds:,.2f})")
+        logger.info(f"Total outflows: {total_outflows:,.2f} from {outflow_count} transactions")
         
         cash_outflows = CashFlowOutflows(
             total_outflows=round(total_outflows, 2),
