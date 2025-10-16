@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Navbar from "@/components/Navbar";
 import { 
   CheckCircle2,
   XCircle,
@@ -213,8 +212,6 @@ export default function ReconciliationReportPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50">
-      <Navbar />
-      
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-8">

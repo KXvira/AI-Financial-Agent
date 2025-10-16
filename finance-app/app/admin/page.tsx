@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { Users, Activity, ShieldAlert, TrendingUp, UserCheck, UserX } from 'lucide-react';
-import Navbar from '@/components/Navbar';
 
 interface AdminStats {
   total_users: number;
@@ -85,7 +84,6 @@ export default function AdminDashboard() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Navbar />
         <div className="flex items-center justify-center h-[calc(100vh-64px)]">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
@@ -99,7 +97,6 @@ export default function AdminDashboard() {
   if (error) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Navbar />
         <div className="flex items-center justify-center h-[calc(100vh-64px)]">
           <div className="text-center max-w-md">
             <ShieldAlert className="w-16 h-16 text-red-500 mx-auto mb-4" />
@@ -127,8 +124,6 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">

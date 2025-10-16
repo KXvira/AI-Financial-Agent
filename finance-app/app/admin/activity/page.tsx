@@ -15,7 +15,6 @@ import {
   Monitor,
   AlertCircle,
 } from 'lucide-react';
-import Navbar from '@/components/Navbar';
 
 interface ActivityLog {
   _id: string;
@@ -152,7 +151,6 @@ export default function ActivityLogPage() {
   if (error === 'Access denied. Admin privileges required.') {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Navbar />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="bg-white rounded-lg shadow-md p-8 text-center">
             <AlertCircle className="w-16 h-16 text-red-600 mx-auto mb-4" />
@@ -174,7 +172,6 @@ export default function ActivityLogPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navbar />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">

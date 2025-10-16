@@ -14,7 +14,6 @@ import {
   CheckCircle,
   XCircle,
 } from 'lucide-react';
-import Navbar from '@/components/Navbar';
 import CreateUserModal from '@/components/CreateUserModal';
 import EditUserModal from '@/components/EditUserModal';
 import DeleteUserModal from '@/components/DeleteUserModal';
@@ -135,7 +134,6 @@ export default function UserManagementPage() {
   if (error && error.includes('Access denied')) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Navbar />
         <div className="flex items-center justify-center h-[calc(100vh-64px)]">
           <div className="text-center max-w-md">
             <Shield className="w-16 h-16 text-red-500 mx-auto mb-4" />
@@ -155,8 +153,6 @@ export default function UserManagementPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">

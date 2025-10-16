@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Navbar from "@/components/Navbar";
 import { 
   User, 
   Mail, 
@@ -217,8 +216,6 @@ export default function CustomerStatementPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-      <Navbar />
-      
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-8">

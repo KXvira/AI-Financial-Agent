@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import Navbar from '@/components/Navbar';
 import StatCard from '@/components/StatCard';
 import ReportChart, { prepareChartData } from '@/components/ReportChart';
 import { exportDashboardMetricsExcel, exportToCSV, exportToPDF, formatDataForExport } from '@/utils/exportUtils';
@@ -90,7 +89,6 @@ export default function DashboardMetricsPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Navbar />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="animate-pulse space-y-6">
             <div className="h-8 bg-gray-200 rounded w-1/4"></div>
@@ -108,7 +106,6 @@ export default function DashboardMetricsPage() {
   if (error || !metrics) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Navbar />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="bg-red-50 border border-red-200 rounded-lg p-6">
             <h3 className="text-red-800 font-semibold mb-2">Error Loading Metrics</h3>
@@ -127,8 +124,6 @@ export default function DashboardMetricsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
