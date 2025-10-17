@@ -48,7 +48,7 @@ export default function IncomeStatementPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [startDate, setStartDate] = useState('2024-01-01');
-  const [endDate, setEndDate] = useState('2024-12-31');
+  const [endDate, setEndDate] = useState('2025-12-31');
 
   const fetchReport = async () => {
     try {

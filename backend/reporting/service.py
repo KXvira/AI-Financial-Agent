@@ -94,32 +94,68 @@ class ReportingService:
         if filters is None:
             filters = {}
         
-        # Note: Dates in DB are strings, not datetime objects
-        # We'll match on string dates since that's how they're stored
+        # Convert date strings for comparison
+        start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+        end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
         
-        # Revenue from paid invoices (using 'issue_date' and 'amount' fields)
+        # Revenue from paid invoices
+        # Note: Dates in DB are strings, so we fetch all and filter in Python
         invoice_match = {}
         if "customer_id" in filters:
             invoice_match["customer_id"] = filters["customer_id"]
         
-        total_invoices = await self.db.invoices.count_documents(invoice_match)
+                # Get all invoices (we'll filter by date after)
+        all_invoices = await self.db.invoices.find(invoice_match).to_list(None)
         
-        invoiced_pipeline = [
-            {"$match": invoice_match},
-            {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
-        ]
-        invoiced_result = await self.db.invoices.aggregate(invoiced_pipeline).to_list(1)
-        total_invoiced = invoiced_result[0]["total"] if invoiced_result else 0.0
+        logger.info(f"Fetched {len(all_invoices)} invoices from database")
         
-        paid_match = {**invoice_match, "status": "paid"}
-        paid_invoices = await self.db.invoices.count_documents(paid_match)
+        # Filter by date in Python since dates are strings
+        from dateutil import parser as date_parser
+        filtered_invoices = []
+        date_parse_errors = 0
+        sample_dates = []
+        for i, invoice in enumerate(all_invoices):
+            issue_date_str = invoice.get("issue_date", invoice.get("date", ""))
+            if not issue_date_str:
+                # Fallback to created_at if issue_date is missing
+                issue_date_str = invoice.get("created_at", "")
+            
+            # Collect first 5 samples for debugging
+            if i < 5:
+                sample_dates.append({
+                    'inv_num': invoice.get('invoice_number', 'N/A'),
+                    'issue_date': str(issue_date_str)[:20],  # Truncate for logging
+                    'type': type(issue_date_str).__name__
+                })
+            
+            # Try to parse date, use start_date as fallback if missing/invalid
+            try:
+                if isinstance(issue_date_str, datetime):
+                    invoice_date = issue_date_str
+                elif issue_date_str:
+                    invoice_date = date_parser.parse(str(issue_date_str))
+                else:
+                    # No date found - use start_date so it's included in the range
+                    invoice_date = start_dt
+                
+                if start_dt <= invoice_date <= end_dt:
+                    filtered_invoices.append(invoice)
+            except Exception as e:
+                date_parse_errors += 1
+                # If date parsing fails, include the invoice anyway by using start_date
+                filtered_invoices.append(invoice)
+                logger.debug(f"Date parse error for invoice {invoice.get('invoice_number')}: {e}, including anyway")
         
-        paid_pipeline = [
-            {"$match": paid_match},
-            {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
-        ]
-        paid_result = await self.db.invoices.aggregate(paid_pipeline).to_list(1)
-        total_paid = paid_result[0]["total"] if paid_result else 0.0
+        logger.info(f"Sample invoice dates: {sample_dates}")
+        logger.info(f"After date filtering: {len(filtered_invoices)} invoices (parse errors: {date_parse_errors})")
+        
+        # Calculate totals
+        total_invoices = len(filtered_invoices)
+        total_invoiced = sum(inv.get("total_amount", inv.get("amount", 0)) for inv in filtered_invoices)
+        
+        paid_invoices_list = [inv for inv in filtered_invoices if inv.get("status") == "paid"]
+        paid_invoices = len(paid_invoices_list)
+        total_paid = sum(inv.get("total_amount", inv.get("amount", 0)) for inv in paid_invoices_list)
         
         total_pending = total_invoiced - total_paid
         
@@ -132,19 +168,41 @@ class ReportingService:
             paid_invoice_count=paid_invoices
         )
         
-        # Expenses from transactions (using 'created_at' and 'category' fields)
-        expense_match = {"type": "expense"}
-        expense_count = await self.db.transactions.count_documents(expense_match)
+        # Expenses from receipts collection (using 'created_at' and OCR data)
+        expense_match = {
+            "$or": [
+                {"receipt_type": "expense"},
+                {"receipt_type": "refund"},
+                {"ocr_data.extracted_data.total_amount": {"$exists": True}}
+            ],
+            "created_at": {"$gte": start_dt, "$lte": end_dt}
+        }
         
-        expense_pipeline = [
-            {"$match": expense_match},
-            {"$group": {"_id": "$category", "total": {"$sum": "$amount"}}},
-            {"$sort": {"total": -1}}
-        ]
+        expense_receipts = await self.db.db["receipts"].find(expense_match).to_list(None)
         
-        expense_results = await self.db.transactions.aggregate(expense_pipeline).to_list(None)
-        expenses_by_category = {result["_id"]: result["total"] for result in expense_results}
-        total_expenses = sum(expenses_by_category.values())
+        # Calculate expenses by category
+        expenses_by_category = {}
+        total_expenses = 0.0
+        
+        for receipt in expense_receipts:
+            # Get amount with priority: OCR data > tax breakdown > line items
+            amount = 0.0
+            category = "Other"
+            
+            if receipt.get("ocr_data"):
+                ocr_extracted = receipt["ocr_data"].get("extracted_data", {})
+                amount = ocr_extracted.get("total_amount", 0)
+                category = ocr_extracted.get("merchant_name", "Other")
+            elif receipt.get("tax_breakdown"):
+                amount = receipt["tax_breakdown"].get("gross_amount", 0)
+            elif receipt.get("line_items"):
+                amount = sum(item.get("total", 0) for item in receipt["line_items"])
+            
+            if amount > 0:
+                total_expenses += amount
+                expenses_by_category[category] = expenses_by_category.get(category, 0) + amount
+        
+        expense_count = len(expense_receipts)
         
         top_categories = []
         for category, amount in sorted(expenses_by_category.items(), key=lambda x: x[1], reverse=True)[:5]:
