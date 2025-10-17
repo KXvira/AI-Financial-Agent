@@ -4,11 +4,14 @@ Receipt API Router
 FastAPI endpoints for receipt generation and management.
 """
 
-from fastapi import APIRouter, HTTPException, Depends, Query, Response, Body
+from fastapi import APIRouter, HTTPException, Depends, Query, Response, Body, UploadFile, File
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timedelta
 import os
+import shutil
 from bson import ObjectId
+import google.generativeai as genai
+import json
 
 from .models import (
     Receipt, ReceiptGenerateRequest, ReceiptType, ReceiptStatus,
@@ -16,10 +19,20 @@ from .models import (
 )
 from .service import ReceiptService
 from .templates_service import ReceiptTemplateService
+from .adapter import ReceiptAdapter
 from backend.database.mongodb import get_database, Database
 
 
 router = APIRouter(prefix="/receipts", tags=["receipts"])
+
+# Configure Gemini for OCR
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
+
+# Directories for uploads
+UPLOAD_DIR = "uploads/receipts/images"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
 def get_receipt_service(db: Database = Depends(get_database)) -> ReceiptService:
@@ -58,25 +71,54 @@ async def generate_receipt(
 @router.get("/{receipt_id}", response_model=Receipt)
 async def get_receipt(
     receipt_id: str,
-    service: ReceiptService = Depends(get_receipt_service)
+    service: ReceiptService = Depends(get_receipt_service),
+    db: Database = Depends(get_database)
 ):
     """
-    Get receipt by ID
+    Get receipt by ID with backward compatibility
     
     Returns receipt details including PDF path and QR code data.
+    Automatically adapts old receipt format to new format.
     """
-    receipt = await service.get_receipt(receipt_id)
-    if not receipt:
-        raise HTTPException(status_code=404, detail="Receipt not found")
-    
-    # Log audit event (viewed)
-    await service._log_audit(
-        receipt_id=receipt.id,
-        receipt_number=receipt.receipt_number,
-        action="viewed"
-    )
-    
-    return receipt
+    try:
+        # Try to get receipt directly from database
+        from bson import ObjectId
+        receipt_doc = await db.db.receipts.find_one({"_id": ObjectId(receipt_id)})
+        
+        if not receipt_doc:
+            raise HTTPException(status_code=404, detail="Receipt not found")
+        
+        # Convert ObjectId to string
+        receipt_doc["_id"] = str(receipt_doc["_id"])
+        
+        # Convert dates to ISO format
+        for date_field in ["issued_date", "created_at", "updated_at", "generated_at", "payment_date"]:
+            if date_field in receipt_doc and receipt_doc[date_field]:
+                if hasattr(receipt_doc[date_field], 'isoformat'):
+                    receipt_doc[date_field] = receipt_doc[date_field].isoformat()
+        
+        # Adapt old format to new format if needed
+        adapted_receipt = ReceiptAdapter.adapt_old_receipt(receipt_doc)
+        
+        # Log audit event (viewed)
+        try:
+            await service._log_audit(
+                receipt_id=adapted_receipt.get('_id'),
+                receipt_number=adapted_receipt.get('receipt_number'),
+                action="viewed"
+            )
+        except:
+            pass  # Don't fail if audit logging fails
+        
+        return adapted_receipt
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error getting receipt: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=404, detail=f"Receipt not found: {str(e)}")
 
 
 @router.get("/number/{receipt_number}", response_model=Receipt)
@@ -96,6 +138,206 @@ async def get_receipt_by_number(
     return receipt
 
 
+@router.post("/upload-ocr", response_model=Receipt, status_code=201)
+async def create_receipt_from_ocr(
+    file: UploadFile = File(...),
+    service: ReceiptService = Depends(get_receipt_service),
+    db: Database = Depends(get_database)
+):
+    """
+    Upload receipt image and extract data using OCR (Gemini AI)
+    
+    This endpoint:
+    1. Accepts an image file (jpg, png, pdf)
+    2. Uses Google Gemini AI to extract receipt data
+    3. Automatically creates a receipt with extracted information
+    4. Generates a PDF receipt
+    5. Returns the complete receipt object
+    
+    The OCR extracts:
+    - Customer information
+    - Line items (description, quantity, price)
+    - Payment method
+    - Tax information
+    - Dates
+    """
+    if not GEMINI_API_KEY:
+        raise HTTPException(status_code=500, detail="OCR service not configured. Please set GEMINI_API_KEY.")
+    
+    # Validate file type
+    allowed_types = ["image/jpeg", "image/jpg", "image/png", "image/webp", "application/pdf"]
+    if file.content_type not in allowed_types:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid file type. Allowed types: {', '.join(allowed_types)}"
+        )
+    
+    # Save uploaded file
+    file_ext = os.path.splitext(file.filename)[1] if file.filename else ".jpg"
+    timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    image_filename = f"receipt_ocr_{timestamp}{file_ext}"
+    image_path = os.path.join(UPLOAD_DIR, image_filename)
+    
+    try:
+        with open(image_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        
+        # Process with Gemini OCR
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        
+        with open(image_path, 'rb') as img_file:
+            image_data = img_file.read()
+        
+        prompt = """
+        Analyze this receipt image and extract ALL information in valid JSON format.
+        Return ONLY the JSON object, no markdown formatting or explanations.
+        
+        Required JSON structure:
+        {
+            "customer_name": "Customer name if visible, otherwise 'Walk-in Customer'",
+            "customer_email": "Email if visible, otherwise null",
+            "customer_phone": "Phone number if visible, otherwise null",
+            "items": [
+                {
+                    "description": "Item name or description",
+                    "quantity": 1.0,
+                    "unit_price": 10.00,
+                    "total": 10.00
+                }
+            ],
+            "payment_method": "Cash/Card/Mobile Money/M-Pesa/Other",
+            "subtotal": 0.0,
+            "tax_rate": 16.0,
+            "tax_amount": 0.0,
+            "total": 0.0,
+            "notes": "Any additional notes or terms",
+            "payment_date": "YYYY-MM-DD HH:MM:SS format or null"
+        }
+        
+        Important:
+        - Extract ALL line items from the receipt
+        - Calculate accurate totals
+        - If tax/VAT is shown, extract the rate and amount
+        - Look for payment method indicators (M-Pesa code, card type, etc.)
+        - Extract any reference numbers as notes
+        - Return valid JSON only, no code blocks or formatting
+        """
+        
+        response = model.generate_content([
+            prompt,
+            {"mime_type": file.content_type, "data": image_data}
+        ])
+        
+        # Parse JSON response
+        response_text = response.text.strip()
+        
+        # Clean up JSON if wrapped in code blocks
+        if response_text.startswith("```json"):
+            response_text = response_text[7:]
+        elif response_text.startswith("```"):
+            response_text = response_text[3:]
+        if response_text.endswith("```"):
+            response_text = response_text[:-3]
+        
+        response_text = response_text.strip()
+        
+        try:
+            extracted_data = json.loads(response_text)
+        except json.JSONDecodeError as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to parse OCR response. Error: {str(e)}. Response: {response_text[:200]}"
+            )
+        
+        # Build line items
+        line_items = []
+        if extracted_data.get('items'):
+            for item in extracted_data['items']:
+                line_items.append({
+                    "description": item.get('description', 'Item'),
+                    "quantity": float(item.get('quantity', 1.0)),
+                    "unit_price": float(item.get('unit_price', 0.0)),
+                    "total": float(item.get('total', 0.0))
+                })
+        
+        # Calculate financials
+        subtotal = extracted_data.get('subtotal', sum(item['total'] for item in line_items))
+        tax_rate = extracted_data.get('tax_rate', 16.0)
+        tax_amount = extracted_data.get('tax_amount', subtotal * (tax_rate / 100))
+        total = extracted_data.get('total', subtotal + tax_amount)
+        
+        # Parse payment method
+        payment_method_str = extracted_data.get('payment_method', 'cash').lower()
+        if 'mpesa' in payment_method_str or 'mobile' in payment_method_str:
+            payment_method = "mpesa"
+        elif 'card' in payment_method_str:
+            payment_method = "card"
+        elif 'bank' in payment_method_str:
+            payment_method = "bank_transfer"
+        elif 'cash' in payment_method_str:
+            payment_method = "cash"
+        else:
+            payment_method = "other"
+        
+        # Parse payment date
+        payment_date = None
+        if extracted_data.get('payment_date'):
+            try:
+                payment_date = datetime.strptime(extracted_data['payment_date'], '%Y-%m-%d %H:%M:%S')
+            except:
+                payment_date = datetime.utcnow()
+        else:
+            payment_date = datetime.utcnow()
+        
+        # Create receipt request
+        receipt_request = ReceiptGenerateRequest(
+            receipt_type=ReceiptType.PAYMENT,
+            customer={
+                "name": extracted_data.get('customer_name', 'Walk-in Customer'),
+                "email": extracted_data.get('customer_email'),
+                "phone": extracted_data.get('customer_phone')
+            },
+            payment_method=payment_method,
+            payment_date=payment_date,
+            amount=total,
+            description=extracted_data.get('notes', 'Payment via OCR upload'),
+            line_items=line_items if line_items else None,
+            include_vat=True,
+            metadata={
+                "notes": extracted_data.get('notes', ''),
+                "tags": ["ocr_generated"],
+                "reference_number": f"OCR-{timestamp}"
+            }
+        )
+        
+        # Generate receipt
+        receipt = await service.generate_receipt(receipt_request)
+        
+        # Store image reference in receipt metadata
+        await db.db.receipts.update_one(
+            {"_id": ObjectId(receipt.id)},
+            {"$set": {"metadata.ocr_image_path": image_filename}}
+        )
+        
+        return receipt
+        
+    except HTTPException:
+        # Clean up on HTTP error
+        if os.path.exists(image_path):
+            os.remove(image_path)
+        raise
+    except Exception as e:
+        # Clean up on error
+        if os.path.exists(image_path):
+            os.remove(image_path)
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=500,
+            detail=f"OCR processing failed: {str(e)}"
+        )
+
+
 @router.get("/")
 async def list_receipts(
     page: int = Query(1, ge=1, description="Page number"),
@@ -108,13 +350,15 @@ async def list_receipts(
     db: Database = Depends(get_database)
 ):
     """
-    List receipts with filters
+    List receipts with filters and backward compatibility
     
     Supports pagination and filtering by:
     - Receipt type (payment, invoice, refund, etc.)
     - Status (draft, generated, sent, viewed, downloaded, voided, issued)
     - Customer ID
     - Date range
+    
+    Automatically adapts old receipt format to new format.
     """
     try:
         # Build query
@@ -122,7 +366,11 @@ async def list_receipts(
         if receipt_type:
             query["receipt_type"] = receipt_type
         if status:
-            query["status"] = status
+            # Map both old and new status values
+            if status == "generated":
+                query["status"] = {"$in": ["generated", "issued"]}
+            else:
+                query["status"] = status
         if customer_id:
             query["customer_id"] = customer_id
         if start_date or end_date:
@@ -146,11 +394,14 @@ async def list_receipts(
             # Convert ObjectId to string
             doc["_id"] = str(doc["_id"])
             # Convert dates to ISO format
-            for date_field in ["issued_date", "created_at", "updated_at"]:
+            for date_field in ["issued_date", "created_at", "updated_at", "generated_at", "payment_date"]:
                 if date_field in doc and doc[date_field]:
-                    if isinstance(doc[date_field], datetime):
+                    if hasattr(doc[date_field], 'isoformat'):
                         doc[date_field] = doc[date_field].isoformat()
-            receipts.append(doc)
+            
+            # Adapt old format to new format
+            adapted_doc = ReceiptAdapter.adapt_old_receipt(doc)
+            receipts.append(adapted_doc)
         
         return {
             "receipts": receipts,

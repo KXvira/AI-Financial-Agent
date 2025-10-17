@@ -63,15 +63,25 @@ export default function ReceiptDetailPage({ params }: { params: Promise<{ id: st
     try {
       setLoading(true);
       const response = await fetch(`http://localhost:8000/receipts/${receiptId}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to load receipt');
+      }
+      
       const data = await response.json();
       setReceipt(data);
       
-      // Fetch PDF preview
-      if (data.pdf_path) {
+      // Always try to fetch PDF preview (backend generates on-the-fly if needed)
+      try {
         const pdfResponse = await fetch(`http://localhost:8000/receipts/${receiptId}/download`);
-        const blob = await pdfResponse.blob();
-        const url = window.URL.createObjectURL(blob);
-        setPdfUrl(url);
+        if (pdfResponse.ok) {
+          const blob = await pdfResponse.blob();
+          const url = window.URL.createObjectURL(blob);
+          setPdfUrl(url);
+        }
+      } catch (pdfError) {
+        console.warn('Could not load PDF preview:', pdfError);
+        // Don't fail the whole request if PDF preview fails
       }
     } catch (err) {
       setError('Failed to load receipt');
