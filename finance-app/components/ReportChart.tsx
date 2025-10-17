@@ -51,6 +51,10 @@ export default function ReportChart({ type, data, options, height = 300, title }
             size: 12,
             family: 'Inter, sans-serif',
           },
+          // Filter out empty labels for doughnut/pie charts
+          filter: function(item: any) {
+            return item.text !== '' && item.text !== undefined && item.text !== null;
+          }
         },
       },
       title: {
@@ -76,21 +80,27 @@ export default function ReportChart({ type, data, options, height = 300, title }
         cornerRadius: 8,
         callbacks: {
           label: function(context: any) {
-            let label = context.dataset.label || '';
+            // For doughnut/pie charts, use the label instead of dataset.label
+            let label = context.label || '';
+            
             if (label) {
               label += ': ';
             }
-            if (context.parsed.y !== null) {
+            
+            // Get the value
+            const value = context.parsed || context.parsed.y || context.raw;
+            
+            if (value !== null && value !== undefined) {
               // Format as currency if the value is large
-              if (Math.abs(context.parsed.y) >= 1000) {
+              if (Math.abs(value) >= 1000) {
                 label += new Intl.NumberFormat('en-KE', {
                   style: 'currency',
                   currency: 'KES',
                   minimumFractionDigits: 0,
                   maximumFractionDigits: 0,
-                }).format(context.parsed.y);
+                }).format(value);
               } else {
-                label += context.parsed.y;
+                label += value;
               }
             }
             return label;

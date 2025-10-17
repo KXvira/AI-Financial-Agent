@@ -146,173 +146,9 @@ export default function DashboardMetricsPage() {
           </button>
         </div>
 
-        {/* Revenue Metrics */}
-        <div className="mb-8">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">💰 Revenue & Income</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <StatCard
-              title="Total Revenue"
-              value={formatCurrency(metrics.total_revenue)}
-              icon="💵"
-              trend={metrics.revenue_trend}
-              trendValue={`${metrics.revenue_change_pct}%`}
-            />
-            <StatCard
-              title="Net Income"
-              value={formatCurrency(metrics.net_income)}
-              icon="💰"
-              subtitle={`${metrics.profit_margin}% margin`}
-            />
-            <StatCard
-              title="Revenue per Customer"
-              value={formatCurrency(metrics.revenue_per_customer)}
-              icon="👤"
-              subtitle={`${metrics.active_customers} active customers`}
-            />
-            <StatCard
-              title="Profit Margin"
-              value={`${metrics.profit_margin}%`}
-              icon="📊"
-              subtitle={metrics.profit_margin > 15 ? 'Healthy' : 'Needs attention'}
-            />
-          </div>
-        </div>
-
-        {/* Invoice Metrics */}
-        <div className="mb-8">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">📄 Invoices</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <StatCard
-              title="Total Invoices"
-              value={formatNumber(metrics.total_invoices)}
-              icon="📋"
-              subtitle={`Avg: ${formatCurrency(metrics.average_invoice_value)}`}
-            />
-            <StatCard
-              title="Paid Invoices"
-              value={formatNumber(metrics.paid_invoices)}
-              icon="✅"
-              subtitle={`${metrics.collection_rate}% collected`}
-              bgColor="bg-green-50"
-            />
-            <StatCard
-              title="Pending Invoices"
-              value={formatNumber(metrics.pending_invoices)}
-              icon="⏳"
-              subtitle={formatCurrency(metrics.total_outstanding)}
-              bgColor="bg-yellow-50"
-            />
-            <StatCard
-              title="Overdue Invoices"
-              value={formatNumber(metrics.overdue_invoices)}
-              icon="⚠️"
-              bgColor={metrics.overdue_invoices > 0 ? 'bg-red-50' : 'bg-green-50'}
-            />
-          </div>
-        </div>
-
-        {/* Collection Metrics */}
-        <div className="mb-8">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">💳 Collections</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <StatCard
-              title="Collection Rate"
-              value={`${metrics.collection_rate}%`}
-              icon="🎯"
-              subtitle={metrics.collection_rate >= 85 ? 'Excellent' : 'Needs improvement'}
-              bgColor={metrics.collection_rate >= 85 ? 'bg-green-50' : 'bg-yellow-50'}
-            />
-            <StatCard
-              title="Days Sales Outstanding"
-              value={`${metrics.dso} days`}
-              icon="📅"
-              subtitle={metrics.dso < 30 ? 'Very good' : 'Above average'}
-            />
-            <StatCard
-              title="Total Outstanding"
-              value={formatCurrency(metrics.total_outstanding)}
-              icon="💸"
-              subtitle={`${metrics.pending_invoices} invoices`}
-            />
-          </div>
-        </div>
-
-        {/* Expense Metrics */}
-        <div className="mb-8">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">💼 Expenses</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <StatCard
-              title="Total Expenses"
-              value={formatCurrency(metrics.total_expenses)}
-              icon="💸"
-              trend={metrics.expense_trend}
-            />
-            <StatCard
-              title="Top Category"
-              value={metrics.top_expense_category}
-              icon="📊"
-              subtitle="Highest spending"
-            />
-            <StatCard
-              title="Expense Trend"
-              value={metrics.expense_trend}
-              icon={getTrendIcon(metrics.expense_trend)}
-              subtitle="Current direction"
-            />
-          </div>
-        </div>
-
-        {/* Customer Metrics */}
-        <div className="mb-8">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">👥 Customers</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <StatCard
-              title="Total Customers"
-              value={formatNumber(metrics.total_customers)}
-              icon="👥"
-            />
-            <StatCard
-              title="Active Customers"
-              value={formatNumber(metrics.active_customers)}
-              icon="✨"
-              subtitle={`${Math.round((metrics.active_customers / metrics.total_customers) * 100)}% of total`}
-            />
-            <StatCard
-              title="Average Revenue"
-              value={formatCurrency(metrics.revenue_per_customer)}
-              icon="💰"
-              subtitle="Per customer"
-            />
-          </div>
-        </div>
-
-        {/* Transaction Metrics */}
-        <div className="mb-8">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">🔄 Transactions</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <StatCard
-              title="Total Transactions"
-              value={formatNumber(metrics.transaction_count)}
-              icon="📊"
-            />
-            <StatCard
-              title="Reconciled"
-              value={formatNumber(metrics.reconciled_transactions)}
-              icon="✅"
-              subtitle={`${metrics.reconciliation_rate}% rate`}
-            />
-            <StatCard
-              title="Reconciliation Rate"
-              value={`${metrics.reconciliation_rate}%`}
-              icon="🎯"
-              bgColor={metrics.reconciliation_rate >= 90 ? 'bg-green-50' : 'bg-yellow-50'}
-            />
-          </div>
-        </div>
-
         {/* Chart Visualizations */}
         <div className="mb-8">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">📊 Visual Analytics</h2>
+          <h2 className="text-xl font-bold text-gray-900 mb-4">Visual Analytics</h2>
           
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
             {/* Revenue vs Expenses vs Net Income */}
@@ -352,11 +188,16 @@ export default function DashboardMetricsPage() {
                 data={prepareChartData(
                   ['Paid', 'Pending', 'Overdue'],
                   [{
-                    label: 'Invoices',
+                    label: '',
                     data: [
                       metrics.paid_invoices,
                       metrics.pending_invoices,
                       metrics.overdue_invoices
+                    ],
+                    backgroundColor: [
+                      'rgba(34, 197, 94, 0.8)',   // Green for Paid
+                      'rgba(59, 130, 246, 0.8)',  // Blue for Pending
+                      'rgba(239, 68, 68, 0.8)',   // Red for Overdue
                     ],
                   }]
                 )}
@@ -403,10 +244,14 @@ export default function DashboardMetricsPage() {
                 data={prepareChartData(
                   ['Active', 'Inactive'],
                   [{
-                    label: 'Customers',
+                    label: '',
                     data: [
                       metrics.active_customers,
                       metrics.total_customers - metrics.active_customers
+                    ],
+                    backgroundColor: [
+                      'rgba(34, 197, 94, 0.8)',   // Green for Active
+                      'rgba(156, 163, 175, 0.8)', // Gray for Inactive
                     ],
                   }]
                 )}
