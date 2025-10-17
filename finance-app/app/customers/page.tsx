@@ -40,7 +40,7 @@ export default function CustomersPage() {
       setError(null);
 
       const [customersRes, statsRes] = await Promise.all([
-        fetch("http://localhost:8000/api/customers/?limit=100"),
+        fetch("http://localhost:8000/api/customers/with-financials?limit=100"),
         fetch("http://localhost:8000/api/customers/stats/summary"),
       ]);
 
@@ -69,7 +69,8 @@ export default function CustomersPage() {
     const matchesStatus =
       statusFilter === "all" ||
       (statusFilter === "active" && customer.status === "active") ||
-      (statusFilter === "overdue" && customer.payment_status === "overdue");
+      (statusFilter === "overdue" && customer.payment_status === "overdue") ||
+      (statusFilter === "outstanding" && customer.outstanding_balance > 0);
 
     return matchesSearch && matchesStatus;
   });
@@ -183,23 +184,31 @@ export default function CustomersPage() {
 
       {/* Search and Filter */}
       <div className="bg-white shadow-lg rounded-lg p-6 mb-6">
-        <div className="flex gap-4">
-          <input
-            type="text"
-            placeholder="Search by name, email, or ID..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
-          />
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
-          >
-            <option value="all">All Status</option>
-            <option value="active">Active</option>
-            <option value="overdue">Overdue Payments</option>
-          </select>
+        <div className="flex flex-col gap-4">
+          <div className="flex gap-4">
+            <input
+              type="text"
+              placeholder="Search by name, email, or ID..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
+            />
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
+            >
+              <option value="all">All Customers</option>
+              <option value="active">Active Only</option>
+              <option value="outstanding">With Outstanding Balance</option>
+              <option value="overdue">Overdue Payments</option>
+            </select>
+          </div>
+          {filteredCustomers.length < customers.length && (
+            <p className="text-sm text-gray-600">
+              Showing {filteredCustomers.length} of {customers.length} customers
+            </p>
+          )}
         </div>
       </div>
 
