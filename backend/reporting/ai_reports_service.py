@@ -179,21 +179,32 @@ class CustomAIReportsService:
         end: datetime
     ) -> Dict[str, Any]:
         """Gather comprehensive financial data for the period"""
-        # Get invoices
+        # Format dates as strings for comparison
+        start_str = start.strftime("%Y-%m-%d")
+        end_str = end.strftime("%Y-%m-%d")
+        
+        # Get invoices - use issue_date (string format)
         invoices = await self.db.invoices.find({
-            "date_issued": {"$gte": start, "$lte": end}
+            "issue_date": {"$gte": start_str, "$lte": end_str}
         }).to_list(length=None)
         
-        # Get transactions
-        transactions = await self.db.transactions.find({
-            "timestamp": {"$gte": start, "$lte": end},
-            "status": "completed"
+        # Get payments (not transactions) - use payment_date (string format)
+        payments = await self.db.payments.find({
+            "payment_date": {"$gte": start_str, "$lte": end_str},
+            "status": {"$in": ["completed", "paid", "success"]}
+        }).to_list(length=None)
+        
+        # Get expenses from transactions collection (keep for expenses)
+        expenses = await self.db.transactions.find({
+            "transaction_date": {"$gte": start_str, "$lte": end_str},
+            "transaction_type": "expense"
         }).to_list(length=None)
         
         # Calculate summaries
         total_revenue = sum(inv.get("total_amount", 0) for inv in invoices if inv.get("status") in ["paid", "partially_paid"])
         total_invoiced = sum(inv.get("total_amount", 0) for inv in invoices)
-        total_expenses = sum(txn.get("amount", 0) for txn in transactions if txn.get("transaction_type") == "expense")
+        total_payment_amount = sum(pay.get("amount", 0) for pay in payments)
+        total_expenses = sum(exp.get("amount", 0) for exp in expenses)
         
         # Get customers
         customer_ids = list(set(inv.get("customer_id") for inv in invoices if inv.get("customer_id")))
@@ -212,10 +223,13 @@ class CustomAIReportsService:
                 "total_amount": round(total_invoiced, 2),
                 "paid_amount": round(total_revenue, 2)
             },
-            "transactions": {
-                "total": len(transactions),
-                "expenses": len([t for t in transactions if t.get("transaction_type") == "expense"]),
-                "total_expenses": round(total_expenses, 2)
+            "payments": {
+                "total": len(payments),
+                "total_amount": round(total_payment_amount, 2)
+            },
+            "expenses": {
+                "total": len(expenses),
+                "total_amount": round(total_expenses, 2)
             },
             "customers": {
                 "active": customers_count
@@ -239,10 +253,13 @@ INVOICES:
 - Total Invoiced Amount: KES {financial_data['invoices']['total_amount']:,.2f}
 - Paid Amount: KES {financial_data['invoices']['paid_amount']:,.2f}
 
-TRANSACTIONS:
-- Total Transactions: {financial_data['transactions']['total']}
-- Expense Transactions: {financial_data['transactions']['expenses']}
-- Total Expenses: KES {financial_data['transactions']['total_expenses']:,.2f}
+PAYMENTS:
+- Total Payments: {financial_data['payments']['total']}
+- Total Payment Amount: KES {financial_data['payments']['total_amount']:,.2f}
+
+EXPENSES:
+- Total Expenses: {financial_data['expenses']['total']}
+- Total Expense Amount: KES {financial_data['expenses']['total_amount']:,.2f}
 
 SUMMARY:
 - Active Customers: {financial_data['customers']['active']}
@@ -257,7 +274,7 @@ User Query: {query}
         return {
             "period": financial_data["period"],
             "revenue": financial_data["invoices"]["paid_amount"],
-            "expenses": financial_data["transactions"]["total_expenses"],
+            "expenses": financial_data["expenses"]["total_amount"],
             "net_income": financial_data["net_income"],
             "invoices_count": financial_data["invoices"]["total"],
             "active_customers": financial_data["customers"]["active"]
@@ -288,7 +305,7 @@ User Query: {query}
         
         # Expense insights
         if report_type in ["general", "expenses"]:
-            expenses = financial_data["transactions"]["total_expenses"]
+            expenses = financial_data["expenses"]["total_amount"]
             revenue = financial_data["invoices"]["paid_amount"]
             expense_ratio = (expenses / revenue * 100) if revenue > 0 else 0
             
@@ -325,7 +342,7 @@ User Query: {query}
         anomalies = []
         
         # Check for high expense ratio
-        expenses = financial_data["transactions"]["total_expenses"]
+        expenses = financial_data["expenses"]["total_amount"]
         revenue = financial_data["invoices"]["paid_amount"]
         
         if revenue > 0:
