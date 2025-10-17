@@ -66,10 +66,14 @@ class CustomerStatementService:
         # Get the actual customer_id (UUID) for queries
         actual_customer_id = customer.get("customer_id")
         
-        # Get invoices for customer (normalized schema)
+        # Format dates as strings for comparison (data stores dates as YYYY-MM-DD strings)
+        start_str = start.strftime("%Y-%m-%d")
+        end_str = end.strftime("%Y-%m-%d")
+        
+        # Get invoices for customer (normalized schema) - use issue_date not date_issued
         invoice_match = {
             "customer_id": actual_customer_id,
-            "date_issued": {"$gte": start, "$lte": end}
+            "issue_date": {"$gte": start_str, "$lte": end_str}
         }
         
         if not include_paid:
@@ -91,12 +95,13 @@ class CustomerStatementService:
             invoice["calculated_total"] = calculated_total if calculated_total > 0 else invoice.get("total", invoice.get("total_amount", 0))
         
         # Get payments for customer (use payments collection, not transactions)
+        # Payment dates are also stored as strings in YYYY-MM-DD format
         payment_match = {
             "$or": [
                 {"customer_id": actual_customer_id},
                 {"invoice_id": {"$in": invoice_ids}}
             ],
-            "payment_date": {"$gte": start, "$lte": end},
+            "payment_date": {"$gte": start_str, "$lte": end_str},
             "status": {"$in": ["completed", "paid", "success"]}
         }
         
@@ -114,25 +119,25 @@ class CustomerStatementService:
         # Prepare transaction history
         transactions = []
         
-        # Add invoices
+        # Add invoices - use issue_date (string format YYYY-MM-DD)
         for invoice in invoices:
             transactions.append({
-                "date": invoice.get("date_issued", datetime.now()),
+                "date": invoice.get("issue_date", datetime.now().strftime("%Y-%m-%d")),  # Use issue_date not date_issued
                 "type": "invoice",
-                "reference": invoice.get("invoice_id", "Unknown"),  # Changed to invoice_id
-                "description": f"Invoice {invoice.get('invoice_id', 'N/A')}",
+                "reference": invoice.get("invoice_number", invoice.get("invoice_id", "Unknown")),
+                "description": f"Invoice {invoice.get('invoice_number', invoice.get('invoice_id', 'N/A'))}",
                 "invoice_id": invoice.get("invoice_id", ""),
                 "amount": invoice.get("calculated_total", 0),  # Use calculated total from invoice_items
                 "payment": 0,
                 "balance": 0,  # Will calculate running balance
                 "status": invoice.get("status", "unknown"),
-                "due_date": invoice.get("due_date")
+                "due_date": invoice.get("due_date")  # Already in string format
             })
         
-        # Add payments (use payment_date not timestamp)
+        # Add payments - use payment_date (string format YYYY-MM-DD)
         for payment in payments:
             transactions.append({
-                "date": payment.get("payment_date", datetime.now()),  # Changed from timestamp
+                "date": payment.get("payment_date", datetime.now().strftime("%Y-%m-%d")),  # payment_date is string
                 "type": "payment",
                 "reference": payment.get("transaction_reference", "Unknown"),  # Normalized field
                 "description": f"Payment - {payment.get('payment_method', 'Payment')}",
@@ -144,7 +149,7 @@ class CustomerStatementService:
                 "due_date": None
             })
         
-        # Sort by date
+        # Sort by date (dates are already strings in YYYY-MM-DD format, so they sort correctly)
         transactions.sort(key=lambda x: x["date"])
         
         # Calculate running balance
@@ -152,10 +157,7 @@ class CustomerStatementService:
         for txn in transactions:
             running_balance += txn["amount"] - txn["payment"]
             txn["balance"] = round(running_balance, 2)
-            # Convert datetime to string for JSON serialization
-            txn["date"] = txn["date"].isoformat() if isinstance(txn["date"], datetime) else txn["date"]
-            if txn.get("due_date"):
-                txn["due_date"] = txn["due_date"].isoformat() if isinstance(txn["due_date"], datetime) else txn["due_date"]
+            # Dates are already strings, no conversion needed
         
         # Get aging breakdown
         aging = await self._calculate_aging(customer_id)
@@ -291,45 +293,74 @@ class CustomerStatementService:
         return aging
     
     async def get_customer_list(self) -> List[Dict[str, Any]]:
-        """Get list of all customers with their outstanding balances"""
-        customers = await self.db.customers.find({}).to_list(length=None)
+        """Get list of all customers with their outstanding balances using aggregation"""
         
-        result = []
-        for customer in customers:
-            # Use MongoDB _id for the API (frontend will use this for statements)
-            customer_mongo_id = str(customer.get("_id", ""))
-            # Use customer_id UUID for querying invoices
-            customer_uuid = customer.get("customer_id", "")
-            
-            # Get outstanding balance using customer_id UUID (normalized schema)
-            invoice_match = {
-                "customer_id": customer_uuid,
-                "status": {"$nin": ["paid", "cancelled", "refunded"]}
+        # Use aggregation pipeline to calculate outstanding balances efficiently
+        pipeline = [
+            {
+                "$lookup": {
+                    "from": "invoices",
+                    "localField": "customer_id",
+                    "foreignField": "customer_id",
+                    "as": "invoices"
+                }
+            },
+            {
+                "$addFields": {
+                    "outstanding_invoices": {
+                        "$filter": {
+                            "input": "$invoices",
+                            "as": "inv",
+                            "cond": {
+                                "$not": {
+                                    "$in": ["$$inv.status", ["paid", "cancelled", "refunded"]]
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "$addFields": {
+                    "outstanding_balance": {
+                        "$sum": {
+                            "$map": {
+                                "input": "$outstanding_invoices",
+                                "as": "inv",
+                                "in": {
+                                    "$subtract": [
+                                        {"$ifNull": ["$$inv.total_amount", 0]},
+                                        {"$ifNull": ["$$inv.amount_paid", 0]}
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "invoice_count": {"$size": "$outstanding_invoices"}
+                }
+            },
+            {
+                "$project": {
+                    "id": {"$toString": "$_id"},
+                    "name": 1,
+                    "email": 1,
+                    "phone": {"$ifNull": ["$phone", "$phone_number"]},
+                    "outstanding_balance": {"$round": ["$outstanding_balance", 2]},
+                    "invoice_count": 1,
+                    "_id": 0  # Exclude _id from result to avoid ObjectId serialization issue
+                }
+            },
+            {
+                "$sort": {"outstanding_balance": -1}
             }
-            
-            invoices = await self.db.invoices.find(invoice_match).to_list(length=None)
-            
-            # Calculate outstanding using invoice_items for accurate totals
-            outstanding = 0
-            for invoice in invoices:
-                invoice_id = invoice.get("invoice_id")
-                items = await self.db.invoice_items.find({"invoice_id": invoice_id}).to_list(length=None)
-                # Use "line_total" field from invoice_items
-                calculated_total = sum(item.get("line_total", item.get("total", 0)) for item in items)
-                invoice_total = calculated_total if calculated_total > 0 else invoice.get("total", invoice.get("total_amount", 0))
-                amount_paid = invoice.get("amount_paid", 0)
-                outstanding += (invoice_total - amount_paid)
-            
-            result.append({
-                "id": customer_mongo_id,  # Return MongoDB _id so frontend can request statements
-                "name": customer.get("name", "Unknown"),
-                "email": customer.get("email"),
-                "phone": customer.get("phone") or customer.get("phone_number"),
-                "outstanding_balance": round(outstanding, 2),
-                "invoice_count": len(invoices)
-            })
+        ]
         
-        # Sort by outstanding balance descending
-        result.sort(key=lambda x: x["outstanding_balance"], reverse=True)
+        result = await self.db.customers.aggregate(pipeline).to_list(length=None)
+        
+        # Format result - ensure proper types
+        for customer in result:
+            customer["name"] = customer.get("name", "Unknown")
+            customer["outstanding_balance"] = round(float(customer.get("outstanding_balance", 0)), 2)
+            customer["invoice_count"] = int(customer.get("invoice_count", 0))
         
         return result

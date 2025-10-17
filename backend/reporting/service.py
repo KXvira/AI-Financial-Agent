@@ -859,27 +859,27 @@ class ReportingService:
         )
     
     async def get_revenue_trends(self, period: str = "monthly", months: int = 12) -> Dict[str, Any]:
-        """Get revenue trends over time"""
+        """Get revenue trends over time using properly formatted date fields"""
         from dateutil.relativedelta import relativedelta
         
         end_date = datetime.now()
         start_date = end_date - relativedelta(months=months)
         
-        # Aggregate revenue by period
+        # Aggregate revenue by period using issue_date
         pipeline = [
             {
                 "$match": {
-                    "payment_date": {
+                    "issue_date": {
                         "$gte": start_date.strftime("%Y-%m-%d"),
                         "$lte": end_date.strftime("%Y-%m-%d")
                     },
-                    "status": "Paid"
+                    "status": "paid"
                 }
             },
             {
                 "$addFields": {
-                    "year": {"$substr": ["$payment_date", 0, 4]},
-                    "month": {"$substr": ["$payment_date", 5, 2]}
+                    "year": {"$substr": ["$issue_date", 0, 4]},
+                    "month": {"$substr": ["$issue_date", 5, 2]}
                 }
             },
             {
@@ -888,7 +888,7 @@ class ReportingService:
                         "year": "$year",
                         "month": "$month"
                     },
-                    "revenue": {"$sum": "$amount"},
+                    "revenue": {"$sum": "$total_amount"},
                     "invoice_count": {"$sum": 1}
                 }
             },
@@ -1038,10 +1038,10 @@ class ReportingService:
             start_str = start.strftime("%Y-%m-%d")
             end_str = end.strftime("%Y-%m-%d")
             
-            # Revenue
+            # Revenue - using issue_date for paid invoices
             revenue_pipeline = [
-                {"$match": {"payment_date": {"$gte": start_str, "$lte": end_str}, "status": "Paid"}},
-                {"$group": {"_id": None, "total": {"$sum": "$amount"}, "count": {"$sum": 1}}}
+                {"$match": {"issue_date": {"$gte": start_str, "$lte": end_str}, "status": "paid"}},
+                {"$group": {"_id": None, "total": {"$sum": "$total_amount"}, "count": {"$sum": 1}}}
             ]
             revenue_result = await self.db.invoices.aggregate(revenue_pipeline).to_list(None)
             revenue = revenue_result[0]['total'] if revenue_result else 0
@@ -1099,10 +1099,10 @@ class ReportingService:
             start_str = start.strftime("%Y-%m-%d")
             end_str = end.strftime("%Y-%m-%d")
             
-            # Revenue
+            # Revenue - using issue_date for paid invoices
             revenue_pipeline = [
-                {"$match": {"payment_date": {"$gte": start_str, "$lte": end_str}, "status": "Paid"}},
-                {"$group": {"_id": None, "total": {"$sum": "$amount"}, "count": {"$sum": 1}}}
+                {"$match": {"issue_date": {"$gte": start_str, "$lte": end_str}, "status": "paid"}},
+                {"$group": {"_id": None, "total": {"$sum": "$total_amount"}, "count": {"$sum": 1}}}
             ]
             revenue_result = await self.db.invoices.aggregate(revenue_pipeline).to_list(None)
             revenue = revenue_result[0]['total'] if revenue_result else 0

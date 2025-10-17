@@ -66,12 +66,14 @@ export default function TrendChart() {
       
       // Fetch all trend data
       const [revenue, expenses, mom, yoy] = await Promise.all([
-        fetch(`http://localhost:8000/api/reports/trends/revenue?months=${selectedMonths}`).then(r => r.json()),
-        fetch(`http://localhost:8000/api/reports/trends/expenses?months=${selectedMonths}`).then(r => r.json()),
-        fetch('http://localhost:8000/api/reports/comparison/mom').then(r => r.json()),
-        fetch('http://localhost:8000/api/reports/comparison/yoy').then(r => r.json())
+        fetch(`http://localhost:8000/reports/trends/revenue?months=${selectedMonths}`).then(r => r.json()),
+        fetch(`http://localhost:8000/reports/trends/expenses?months=${selectedMonths}`).then(r => r.json()),
+        fetch('http://localhost:8000/reports/comparison/mom').then(r => r.json()),
+        fetch('http://localhost:8000/reports/comparison/yoy').then(r => r.json())
       ]);
 
+      console.log('Trend data loaded:', { revenue, expenses, mom, yoy });
+      
       setRevenueTrends(revenue);
       setExpenseTrends(expenses);
       setMomComparison(mom);
@@ -136,7 +138,7 @@ export default function TrendChart() {
       </div>
 
       {/* Revenue Trend Chart */}
-      {revenueTrends && (
+      {revenueTrends && revenueTrends.data && revenueTrends.data.length > 0 && (
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center justify-between mb-4">
             <div>
@@ -181,7 +183,7 @@ export default function TrendChart() {
       )}
 
       {/* Expense Trend Chart */}
-      {expenseTrends && (
+      {expenseTrends && expenseTrends.data && expenseTrends.data.length > 0 && (
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center justify-between mb-4">
             <div>
@@ -228,7 +230,7 @@ export default function TrendChart() {
       {/* Comparison Cards */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Month-over-Month */}
-        {momComparison && (
+        {momComparison && momComparison.current && momComparison.changes && (
           <div className="bg-white rounded-lg shadow p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
               📅 Month-over-Month Comparison
@@ -284,7 +286,7 @@ export default function TrendChart() {
         )}
 
         {/* Year-over-Year */}
-        {yoyComparison && (
+        {yoyComparison && yoyComparison.current && yoyComparison.changes && (
           <div className="bg-white rounded-lg shadow p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
               📈 Year-over-Year Comparison

@@ -43,7 +43,11 @@ interface Receipt {
   metadata?: any;
 }
 
-export default function ReceiptDetailPage({ params }: { params: { id: string } }) {
+export default function ReceiptDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  // Unwrap the params Promise using React.use()
+  const resolvedParams = React.use(params);
+  const receiptId = resolvedParams.id;
+  
   const router = useRouter();
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [loading, setLoading] = useState(true);
@@ -53,18 +57,18 @@ export default function ReceiptDetailPage({ params }: { params: { id: string } }
 
   useEffect(() => {
     fetchReceipt();
-  }, [params.id]);
+  }, [receiptId]);
 
   const fetchReceipt = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`http://localhost:8000/receipts/${params.id}`);
+      const response = await fetch(`http://localhost:8000/receipts/${receiptId}`);
       const data = await response.json();
       setReceipt(data);
       
       // Fetch PDF preview
       if (data.pdf_path) {
-        const pdfResponse = await fetch(`http://localhost:8000/receipts/${params.id}/download`);
+        const pdfResponse = await fetch(`http://localhost:8000/receipts/${receiptId}/download`);
         const blob = await pdfResponse.blob();
         const url = window.URL.createObjectURL(blob);
         setPdfUrl(url);
@@ -81,7 +85,7 @@ export default function ReceiptDetailPage({ params }: { params: { id: string } }
     if (!receipt) return;
     
     try {
-      const response = await fetch(`http://localhost:8000/receipts/${params.id}/download`);
+      const response = await fetch(`http://localhost:8000/receipts/${receiptId}/download`);
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -112,7 +116,7 @@ export default function ReceiptDetailPage({ params }: { params: { id: string } }
     if (!email) return;
     
     try {
-      const response = await fetch(`http://localhost:8000/receipts/${params.id}/email?email=${email}`, {
+      const response = await fetch(`http://localhost:8000/receipts/${receiptId}/email?email=${email}`, {
         method: 'POST'
       });
       const data = await response.json();
@@ -132,7 +136,7 @@ export default function ReceiptDetailPage({ params }: { params: { id: string } }
     if (!reason) return;
     
     try {
-      const response = await fetch(`http://localhost:8000/receipts/${params.id}/void`, {
+      const response = await fetch(`http://localhost:8000/receipts/${receiptId}/void`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reason })
@@ -200,9 +204,9 @@ export default function ReceiptDetailPage({ params }: { params: { id: string } }
             >
               ← Back to Receipts
             </button>
-            <h1 className="text-3xl font-bold text-gray-900">Receipt {receipt.receipt_number}</h1>
+            <h1 className="text-3xl font-bold text-gray-900">Receipt {receipt.receipt_number || 'Unknown'}</h1>
             <p className="mt-2 text-sm text-gray-600">
-              Generated on {formatDate(receipt.generated_at)}
+              Generated on {receipt.generated_at ? formatDate(receipt.generated_at) : 'Unknown date'}
             </p>
           </div>
           
@@ -239,19 +243,19 @@ export default function ReceiptDetailPage({ params }: { params: { id: string } }
               <div className="space-y-3">
                 <div>
                   <span className="text-sm font-medium text-gray-600">Name:</span>
-                  <p className="text-sm text-gray-900">{receipt.customer.name}</p>
+                  <p className="text-sm text-gray-900">{receipt.customer?.name || 'N/A'}</p>
                 </div>
                 <div>
                   <span className="text-sm font-medium text-gray-600">Phone:</span>
-                  <p className="text-sm text-gray-900">{receipt.customer.phone}</p>
+                  <p className="text-sm text-gray-900">{receipt.customer?.phone || 'N/A'}</p>
                 </div>
-                {receipt.customer.email && (
+                {receipt.customer?.email && (
                   <div>
                     <span className="text-sm font-medium text-gray-600">Email:</span>
                     <p className="text-sm text-gray-900">{receipt.customer.email}</p>
                   </div>
                 )}
-                {receipt.customer.address && (
+                {receipt.customer?.address && (
                   <div>
                     <span className="text-sm font-medium text-gray-600">Address:</span>
                     <p className="text-sm text-gray-900">{receipt.customer.address}</p>
@@ -266,19 +270,19 @@ export default function ReceiptDetailPage({ params }: { params: { id: string } }
               <div className="space-y-3">
                 <div className="flex justify-between">
                   <span className="text-sm font-medium text-gray-600">Type:</span>
-                  <span className="text-sm text-gray-900 capitalize">{receipt.receipt_type.replace('_', ' ')}</span>
+                  <span className="text-sm text-gray-900 capitalize">{receipt.receipt_type?.replace('_', ' ') || 'N/A'}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm font-medium text-gray-600">Status:</span>
                   <span className={`text-sm font-semibold ${
                     receipt.status === 'voided' ? 'text-red-600' : 'text-green-600'
                   }`}>
-                    {receipt.status.toUpperCase()}
+                    {receipt.status?.toUpperCase() || 'UNKNOWN'}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm font-medium text-gray-600">Payment Method:</span>
-                  <span className="text-sm text-gray-900 uppercase">{receipt.payment_method}</span>
+                  <span className="text-sm text-gray-900 uppercase">{receipt.payment_method || 'N/A'}</span>
                 </div>
                 {receipt.payment_reference && (
                   <div className="flex justify-between">
@@ -293,7 +297,7 @@ export default function ReceiptDetailPage({ params }: { params: { id: string } }
             <div className="bg-white rounded-lg shadow p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Items</h2>
               <div className="space-y-3">
-                {receipt.line_items.map((item, index) => (
+                {receipt.line_items?.map((item, index) => (
                   <div key={index} className="border-b border-gray-200 pb-3 last:border-0">
                     <div className="flex justify-between mb-1">
                       <span className="text-sm font-medium text-gray-900">{item.description}</span>
@@ -304,7 +308,7 @@ export default function ReceiptDetailPage({ params }: { params: { id: string } }
                       {item.tax_rate && <span>VAT: {(item.tax_rate * 100).toFixed(0)}%</span>}
                     </div>
                   </div>
-                ))}
+                )) || <p className="text-sm text-gray-500">No items found</p>}
               </div>
               
               <div className="mt-4 pt-4 border-t border-gray-200 space-y-2">

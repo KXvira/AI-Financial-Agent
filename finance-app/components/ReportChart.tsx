@@ -80,19 +80,24 @@ export default function ReportChart({ type, data, options, height = 300, title }
         cornerRadius: 8,
         callbacks: {
           label: function(context: any) {
-            // For doughnut/pie charts, use the label instead of dataset.label
-            let label = context.label || '';
+            // For doughnut/pie charts, use the segment label
+            let label = context.label || context.dataset.label || '';
             
             if (label) {
               label += ': ';
             }
             
-            // Get the value
-            const value = context.parsed || context.parsed.y || context.raw;
+            // Get the value safely
+            let value = context.parsed;
+            
+            // For bar/line charts, parsed is an object with x/y
+            if (typeof value === 'object' && value !== null) {
+              value = value.y !== undefined ? value.y : value.x;
+            }
             
             if (value !== null && value !== undefined) {
               // Format as currency if the value is large
-              if (Math.abs(value) >= 1000) {
+              if (typeof value === 'number' && Math.abs(value) >= 1000) {
                 label += new Intl.NumberFormat('en-KE', {
                   style: 'currency',
                   currency: 'KES',
@@ -210,13 +215,39 @@ export const prepareChartData = (
     borderWidth?: number;
   }>
 ): ChartData<any> => {
+  // Add safety check for datasets
+  if (!datasets || !Array.isArray(datasets) || datasets.length === 0) {
+    console.error('prepareChartData: datasets is invalid', { 
+      datasets, 
+      labels,
+      isArray: Array.isArray(datasets),
+      length: datasets?.length 
+    });
+    return {
+      labels: labels || [],
+      datasets: [],
+    };
+  }
+
   return {
-    labels,
-    datasets: datasets.map((dataset, index) => ({
-      ...dataset,
-      backgroundColor: dataset.backgroundColor || generateColors(labels.length, 0.8),
-      borderColor: dataset.borderColor || generateColors(labels.length, 1),
-      borderWidth: dataset.borderWidth || 1,
-    })),
+    labels: labels || [],
+    datasets: datasets.map((dataset, index) => {
+      if (!dataset || !Array.isArray(dataset.data)) {
+        console.error('prepareChartData: invalid dataset', { dataset, index });
+        return {
+          label: '',
+          data: [],
+          backgroundColor: generateColors(1, 0.8),
+          borderColor: generateColors(1, 1),
+          borderWidth: 1,
+        };
+      }
+      return {
+        ...dataset,
+        backgroundColor: dataset.backgroundColor || generateColors(labels.length, 0.8),
+        borderColor: dataset.borderColor || generateColors(labels.length, 1),
+        borderWidth: dataset.borderWidth || 1,
+      };
+    }),
   };
 };
