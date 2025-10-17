@@ -469,63 +469,84 @@ class ReportingService:
         
         as_of_dt = datetime.fromisoformat(as_of_date)
         
-        # ========== QUERY OUTSTANDING INVOICES ==========
+        # ========== QUERY OUTSTANDING INVOICES (OPTIMIZED WITH AGGREGATION) ==========
         
-        # Find all unpaid invoices
-        outstanding_match = {
-            "status": {"$in": ["pending", "sent", "unpaid", "overdue"]}
-        }
+        # Build aggregation pipeline for performance
+        # This replaces 800+ individual queries with ONE aggregation query
+        pipeline = [
+            # Step 1: Match outstanding invoices
+            {
+                "$match": {
+                    "status": {"$in": ["pending", "sent", "unpaid", "overdue"]}
+                }
+            }
+        ]
         
         # Add customer filter if provided
         if "customer_id" in filters:
-            outstanding_match["customer_id"] = filters["customer_id"]
+            pipeline[0]["$match"]["customer_id"] = filters["customer_id"]
         
-        outstanding_invoices = await self.db.invoices.find(outstanding_match).to_list(None)
+        # Step 2: Lookup invoice items (replaces N individual queries)
+        pipeline.append({
+            "$lookup": {
+                "from": "invoice_items",
+                "localField": "invoice_id",
+                "foreignField": "invoice_id",
+                "as": "items"
+            }
+        })
         
-        # Calculate invoice totals from invoice_items collection (normalized schema)
-        # and populate customer names if missing
-        total_outstanding = 0.0
-        for invoice in outstanding_invoices:
-            invoice_id = invoice.get("invoice_id")
-            items = await self.db.invoice_items.find({"invoice_id": invoice_id}).to_list(length=None)
-            # Calculate total from items - use "line_total" field
-            calculated_total = sum(item.get("line_total", item.get("total", 0)) for item in items)
-            invoice["calculated_total"] = calculated_total if calculated_total > 0 else invoice.get("total", invoice.get("amount", 0))
-            total_outstanding += invoice["calculated_total"]
-            
-            # Populate customer_name if missing (Priority 2 fix)
-            if not invoice.get("customer_name") or invoice.get("customer_name") == "Unknown":
-                customer_id = invoice.get("customer_id")
-                if customer_id:
-                    try:
-                        # Try to find customer by UUID string (not ObjectId)
-                        # First try customer_id field (string UUID)
-                        customer = await self.db.customers.find_one({"customer_id": customer_id})
-                        
-                        # If not found, try _id field
-                        if not customer:
-                            try:
-                                from bson import ObjectId
-                                customer = await self.db.customers.find_one({"_id": ObjectId(customer_id)})
-                            except:
-                                pass  # customer_id is not a valid ObjectId, skip
-                        
-                        if customer:
-                            # Get customer name from various possible fields
-                            customer_name = (
-                                customer.get("name") or 
-                                customer.get("customer_name") or 
-                                customer.get("company_name") or
-                                f"{customer.get('first_name', '')} {customer.get('last_name', '')}".strip() or
-                                "Unknown"
-                            )
-                            invoice["customer_name"] = customer_name
-                    except Exception as e:
-                        logger.debug(f"Could not fetch customer for invoice {invoice.get('invoice_number')}: {e}")
-                        # Keep as Unknown, don't spam logs
+        # Step 3: Lookup customer info (replaces N individual queries)
+        pipeline.append({
+            "$lookup": {
+                "from": "customers",
+                "localField": "customer_id",
+                "foreignField": "customer_id",
+                "as": "customer_info"
+            }
+        })
         
+        # Step 4: Calculate totals and extract customer name
+        pipeline.append({
+            "$addFields": {
+                # Calculate total from items
+                "calculated_total": {
+                    "$cond": {
+                        "if": {"$gt": [{"$size": "$items"}, 0]},
+                        "then": {"$sum": "$items.line_total"},
+                        "else": {"$ifNull": ["$total_amount", {"$ifNull": ["$total", {"$ifNull": ["$amount", 0]}]}]}
+                    }
+                },
+                # Extract customer name from lookup result
+                "customer_name": {
+                    "$ifNull": [
+                        {"$arrayElemAt": ["$customer_info.name", 0]},
+                        {"$arrayElemAt": ["$customer_info.customer_name", 0]},
+                        {"$arrayElemAt": ["$customer_info.company_name", 0]},
+                        "$customer_name",  # Fallback to existing field
+                        "Unknown"
+                    ]
+                }
+            }
+        })
+        
+        # Step 5: Remove the lookup arrays to reduce memory
+        pipeline.append({
+            "$project": {
+                "items": 0,
+                "customer_info": 0
+            }
+        })
+        
+        # Execute optimized aggregation (ONE query instead of 800+)
+        logger.info("Executing optimized AR aging aggregation pipeline...")
+        outstanding_invoices = await self.db.invoices.aggregate(pipeline).to_list(None)
+        
+        # Calculate total outstanding
+        total_outstanding = sum(inv.get("calculated_total", 0) for inv in outstanding_invoices)
         total_invoices = len(outstanding_invoices)
-        logger.info(f"Found {total_invoices} outstanding invoices with total: {total_outstanding:,.2f}")
+        
+        logger.info(f"Found {total_invoices} outstanding invoices with total: {total_outstanding:,.2f} (via aggregation)")
         
         # ========== CREATE AGING BUCKETS ==========
         
