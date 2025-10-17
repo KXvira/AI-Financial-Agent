@@ -222,6 +222,9 @@ class ReportingService:
         
         # Calculations
         net_income = total_paid - total_expenses
+        gross_profit = total_paid - total_expenses  # For service business
+        operating_income = gross_profit  # Same as gross profit for now
+        profit_margin = (net_income / total_paid * 100) if total_paid > 0 else 0.0
         net_margin = (net_income / total_paid * 100) if total_paid > 0 else 0.0
         avg_invoice = total_paid / paid_invoices if paid_invoices > 0 else 0.0
         
@@ -234,14 +237,20 @@ class ReportingService:
             "pending_invoice_count": total_invoices - paid_invoices
         }
         
+        collection_rate = round((total_paid / total_invoiced * 100) if total_invoiced > 0 else 0, 1)
+        
         return IncomeStatementReport(
             period_start=start_date,
             period_end=end_date,
             generated_at=datetime.now().isoformat(),
             revenue=revenue_section,
             expenses=expense_section,
+            gross_profit=round(gross_profit, 2),
+            operating_income=round(operating_income, 2),
             net_income=round(net_income, 2),
+            profit_margin=round(profit_margin, 2),
             net_margin=round(net_margin, 2),
+            collection_rate=collection_rate,
             metrics=metrics
         )
     

@@ -71,8 +71,12 @@ class IncomeStatementReport(BaseModel):
     expenses: ExpenseSection = Field(..., description="Expenses section")
     
     # Calculations
+    gross_profit: float = Field(0.0, description="Gross profit (revenue - expenses)")
+    operating_income: float = Field(0.0, description="Operating income")
     net_income: float = Field(..., description="Net income (revenue - expenses)")
+    profit_margin: float = Field(0.0, description="Profit margin percentage")
     net_margin: float = Field(..., description="Net profit margin percentage")
+    collection_rate: float = Field(0.0, description="Collection rate percentage")
     
     # Additional metrics
     metrics: Dict[str, Any] = Field(default_factory=dict, description="Additional key metrics")
