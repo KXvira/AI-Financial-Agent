@@ -274,9 +274,9 @@ async def get_data_summary(
         total_invoices = await db.invoices.count_documents({})
         pending_invoices = await db.invoices.count_documents({"status": "sent"})
         
-        # Count M-Pesa transactions specifically
-        mpesa_transactions = await db.transactions.count_documents({
-            "gateway": "mpesa"
+        # Count M-Pesa payments specifically (from payments collection)
+        mpesa_transactions = await db.payments.count_documents({
+            "payment_method": {"$regex": "mpesa", "$options": "i"}
         })
         
         # Calculate total revenue from completed transactions

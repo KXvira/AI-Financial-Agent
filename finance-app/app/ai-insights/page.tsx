@@ -109,7 +109,7 @@ export default function AIInsightsPage() {
 
       {/* Data Summary Cards */}
       {dataSummary && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <div className="bg-white p-6 rounded-lg shadow-md border">
             <h3 className="text-sm font-medium text-gray-600 mb-2">Total Transactions</h3>
             <p className="text-2xl font-bold text-gray-900">{dataSummary.total_transactions}</p>
@@ -118,11 +118,6 @@ export default function AIInsightsPage() {
           <div className="bg-white p-6 rounded-lg shadow-md border">
             <h3 className="text-sm font-medium text-gray-600 mb-2">Total Invoices</h3>
             <p className="text-2xl font-bold text-gray-900">{dataSummary.total_invoices}</p>
-          </div>
-          
-          <div className="bg-white p-6 rounded-lg shadow-md border">
-            <h3 className="text-sm font-medium text-gray-600 mb-2">M-Pesa Transactions</h3>
-            <p className="text-2xl font-bold text-gray-900">{dataSummary.mpesa_transactions}</p>
           </div>
           
           <div className="bg-white p-6 rounded-lg shadow-md border">
