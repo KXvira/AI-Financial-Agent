@@ -170,7 +170,7 @@ export default function AIReportsPage() {
     }
   };
 
-  const getImpactIcon = (impact: string) => {
+  const getImpactIcon = (impact?: string) => {
     switch (impact) {
       case "positive":
         return <TrendingUp className="w-5 h-5 text-green-500" />;
@@ -181,7 +181,7 @@ export default function AIReportsPage() {
     }
   };
 
-  const getImpactColor = (impact: string) => {
+  const getImpactColor = (impact?: string) => {
     switch (impact) {
       case "positive":
         return "bg-green-50 border-green-200";
@@ -218,6 +218,14 @@ export default function AIReportsPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Back Button */}
+        <a
+          href="/reports"
+          className="inline-flex items-center text-blue-600 hover:text-blue-800 mb-4 transition-colors"
+        >
+          ← Back to Reports
+        </a>
+
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-gray-900 mb-2 flex items-center gap-3">
@@ -363,7 +371,7 @@ export default function AIReportsPage() {
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
                           <h3 className="font-bold text-gray-900 text-lg">
-                            {insight.category}
+                            {insight.category || 'General'}
                           </h3>
                           <span
                             className={`px-2 py-1 rounded text-xs font-medium ${
@@ -374,7 +382,7 @@ export default function AIReportsPage() {
                                 : "bg-blue-100 text-blue-800"
                             }`}
                           >
-                            {insight.impact.toUpperCase()}
+                            {insight.impact?.toUpperCase() || 'NEUTRAL'}
                           </span>
                         </div>
                         <p className="text-gray-700 mb-3">{insight.insight}</p>

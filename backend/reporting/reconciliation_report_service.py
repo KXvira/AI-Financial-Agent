@@ -41,25 +41,34 @@ class ReconciliationReportService:
             # Default to last 30 days
             start = end - timedelta(days=30)
         
-        # Get transactions
-        txn_match = {
-            "timestamp": {"$gte": start, "$lte": end},
-            "status": "completed"  # Only completed transactions
+        # Format dates as strings for comparison (payments use string dates)
+        start_str = start.strftime("%Y-%m-%d")
+        end_str = end.strftime("%Y-%m-%d")
+        
+        # Get payments (not transactions) - this is the correct collection
+        payment_match = {
+            "payment_date": {"$gte": start_str, "$lte": end_str},
+            "status": {"$in": ["completed", "pending"]}  # Include both completed and pending
         }
         
+        # Note: We don't have reconciliation_status field, we use ai_matched and match_status instead
         if status:
-            txn_match["reconciliation_status"] = status
+            if status == "matched":
+                payment_match["ai_matched"] = True
+                payment_match["match_status"] = "correct"
+            elif status == "unmatched":
+                payment_match["ai_matched"] = False
         
-        transactions = await self.db.transactions.find(txn_match).to_list(length=None)
+        payments = await self.db.payments.find(payment_match).to_list(length=None)
         
-        # Get invoices
+        # Get invoices for the period - use issue_date not date_issued
         invoice_match = {
-            "date_issued": {"$gte": start, "$lte": end}
+            "issue_date": {"$gte": start_str, "$lte": end_str}
         }
         
         invoices = await self.db.invoices.find(invoice_match).to_list(length=None)
         
-        # Categorize transactions
+        # Categorize payments based on AI matching results
         matched_txns = []
         unmatched_txns = []
         partial_txns = []
@@ -69,36 +78,53 @@ class ReconciliationReportService:
         total_unmatched_amount = 0
         total_partial_amount = 0
         
-        for txn in transactions:
-            reconciliation_status = txn.get("reconciliation_status", "unmatched")
-            amount = txn.get("amount", 0)
+        for payment in payments:
+            # Use payment fields instead of transaction fields
+            ai_matched = payment.get("ai_matched", False)
+            match_status = payment.get("match_status", "unmatched")
+            amount = payment.get("amount", 0)
+            confidence = payment.get("match_confidence", 0)
             
-            txn_data = {
-                "id": str(txn.get("_id", "")),
-                "date": txn.get("timestamp").isoformat() if isinstance(txn.get("timestamp"), datetime) else txn.get("timestamp"),
-                "reference": txn.get("mpesa_receipt_number") or txn.get("reference", "Unknown"),
+            # Get customer name from payment or lookup
+            customer_name = None
+            if payment.get("customer_id"):
+                customer = await self.db.customers.find_one({"customer_id": payment.get("customer_id")})
+                if customer:
+                    customer_name = customer.get("name")
+            
+            # Get invoice number if linked
+            invoice_number = None
+            if payment.get("invoice_id"):
+                invoice = await self.db.invoices.find_one({"invoice_id": payment.get("invoice_id")})
+                if invoice:
+                    invoice_number = invoice.get("invoice_number")
+            
+            payment_data = {
+                "id": str(payment.get("_id", "")),
+                "date": payment.get("payment_date", ""),  # Already a string
+                "reference": payment.get("transaction_reference", "Unknown"),
                 "amount": amount,
-                "phone": txn.get("phone_number"),
-                "description": txn.get("description", ""),
-                "invoice_id": txn.get("invoice_id"),
-                "invoice_number": txn.get("invoice_number"),
-                "customer_name": txn.get("customer_name"),
-                "reconciliation_status": reconciliation_status,
-                "confidence_score": txn.get("confidence_score"),
-                "needs_review": txn.get("needs_review", False),
-                "review_reason": txn.get("review_reason")
+                "payment_method": payment.get("payment_method", ""),
+                "description": payment.get("notes", ""),
+                "invoice_id": payment.get("invoice_id"),
+                "invoice_number": invoice_number,
+                "customer_name": customer_name,
+                "reconciliation_status": match_status,
+                "confidence_score": confidence,
+                "needs_review": confidence < 0.7 if ai_matched else False,
+                "review_reason": "Low confidence match" if (ai_matched and confidence < 0.7) else None
             }
             
-            if reconciliation_status == "matched":
-                matched_txns.append(txn_data)
+            if ai_matched and match_status == "correct":
+                matched_txns.append(payment_data)
                 total_matched_amount += amount
-            elif reconciliation_status == "partial_match" or reconciliation_status == "partial":
-                partial_txns.append(txn_data)
+            elif match_status == "partial_match" or match_status == "partial":
+                partial_txns.append(payment_data)
                 total_partial_amount += amount
-            elif reconciliation_status == "needs_review":
-                needs_review_txns.append(txn_data)
+            elif ai_matched and confidence < 0.7:
+                needs_review_txns.append(payment_data)
             else:
-                unmatched_txns.append(txn_data)
+                unmatched_txns.append(payment_data)
                 total_unmatched_amount += amount
         
         # Get unmatched invoices (invoices without payments)
@@ -108,20 +134,27 @@ class ReconciliationReportService:
             if status not in ["paid", "cancelled", "refunded"]:
                 outstanding = invoice.get("total_amount", 0) - invoice.get("amount_paid", 0)
                 if outstanding > 0:
+                    # Get customer name
+                    customer_name = "Unknown"
+                    if invoice.get("customer_id"):
+                        customer = await self.db.customers.find_one({"customer_id": invoice.get("customer_id")})
+                        if customer:
+                            customer_name = customer.get("name", "Unknown")
+                    
                     unmatched_invoices.append({
                         "id": str(invoice.get("_id", "")),
                         "invoice_number": invoice.get("invoice_number", "Unknown"),
-                        "date": invoice.get("date_issued").isoformat() if isinstance(invoice.get("date_issued"), datetime) else invoice.get("date_issued"),
-                        "customer_name": invoice.get("customer_name") or invoice.get("customer", {}).get("name", "Unknown"),
+                        "date": invoice.get("issue_date", ""),  # Already a string
+                        "customer_name": customer_name,
                         "total_amount": invoice.get("total_amount", 0),
                         "amount_paid": invoice.get("amount_paid", 0),
                         "outstanding": outstanding,
-                        "due_date": invoice.get("due_date").isoformat() if invoice.get("due_date") and isinstance(invoice.get("due_date"), datetime) else invoice.get("due_date"),
+                        "due_date": invoice.get("due_date", ""),  # Already a string
                         "status": status
                     })
         
         # Calculate statistics
-        total_transactions = len(transactions)
+        total_transactions = len(payments)  # Changed from transactions to payments
         matched_count = len(matched_txns)
         unmatched_count = len(unmatched_txns)
         partial_count = len(partial_txns)
@@ -131,7 +164,7 @@ class ReconciliationReportService:
         
         # Get reconciliation issues
         issues = await self._identify_reconciliation_issues(
-            transactions, 
+            payments,  # Changed from transactions to payments
             invoices, 
             unmatched_txns,
             unmatched_invoices
@@ -169,7 +202,7 @@ class ReconciliationReportService:
     
     async def _identify_reconciliation_issues(
         self,
-        transactions: List[Dict[str, Any]],
+        payments: List[Dict[str, Any]],  # Changed from transactions
         invoices: List[Dict[str, Any]],
         unmatched_txns: List[Dict[str, Any]],
         unmatched_invoices: List[Dict[str, Any]]
@@ -179,18 +212,18 @@ class ReconciliationReportService:
         
         # Issue 1: Duplicate payments
         payment_refs = {}
-        for txn in transactions:
-            ref = txn.get("mpesa_receipt_number") or txn.get("reference")
-            if ref in payment_refs:
+        for payment in payments:  # Changed from txn to payment
+            ref = payment.get("transaction_reference", "")
+            if ref and ref in payment_refs:
                 issues.append({
                     "type": "duplicate_payment",
                     "severity": "high",
                     "description": f"Duplicate payment reference: {ref}",
                     "reference": ref,
-                    "transactions": [str(txn.get("_id")), str(payment_refs[ref].get("_id"))]
+                    "transactions": [str(payment.get("_id")), str(payment_refs[ref].get("_id"))]
                 })
-            else:
-                payment_refs[ref] = txn
+            elif ref:
+                payment_refs[ref] = payment
         
         # Issue 2: Large unmatched amounts
         large_unmatched = [txn for txn in unmatched_txns if txn["amount"] > 10000]
