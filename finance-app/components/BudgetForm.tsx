@@ -1,26 +1,80 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { BudgetTemplate } from '@/types/budget';
+
+interface Budget {
+  id: string;
+  category: string;
+  subcategory?: string;
+  amount: number;
+  actual_spent: number;
+  period_type: string;
+  start_date: string;
+  end_date: string;
+  alert_threshold: number;
+  description?: string;
+  status: string;
+  alert_level: string;
+  created_at: string;
+  updated_at: string;
+}
 
 interface BudgetFormProps {
   onClose: () => void;
   onSuccess: () => void;
+  budget?: Budget; // Optional: for edit mode
+  template?: BudgetTemplate | null; // Optional: for template-based creation
 }
 
-export default function BudgetForm({ onClose, onSuccess }: BudgetFormProps) {
+export default function BudgetForm({ onClose, onSuccess, budget, template }: BudgetFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const isEditMode = !!budget;
+  const isFromTemplate = !!template && !budget;
 
   const [formData, setFormData] = useState({
-    category: '',
-    subcategory: '',
-    amount: '',
-    period_type: 'monthly',
-    start_date: new Date().toISOString().split('T')[0],
-    end_date: '',
-    alert_threshold: '80',
-    description: ''
+    category: budget?.category || template?.category || '',
+    subcategory: budget?.subcategory || template?.subcategory || '',
+    amount: budget?.amount.toString() || template?.amount.toString() || '',
+    period_type: budget?.period_type || template?.period_type || 'monthly',
+    start_date: budget?.start_date || new Date().toISOString().split('T')[0],
+    end_date: budget?.end_date || '',
+    alert_threshold: budget?.alert_threshold.toString() || template?.alert_threshold.toString() || '80',
+    description: budget?.description || ''
   });
+
+  // Auto-calculate end_date on mount if editing
+  useEffect(() => {
+    if (!isEditMode && !formData.end_date && formData.start_date) {
+      calculateEndDate(formData.period_type, formData.start_date);
+    }
+  }, []);
+
+  const calculateEndDate = (periodType: string, startDate: string) => {
+    const start = new Date(startDate);
+    const end = new Date(start);
+    
+    switch (periodType) {
+      case 'weekly':
+        end.setDate(end.getDate() + 7);
+        break;
+      case 'monthly':
+        end.setMonth(end.getMonth() + 1);
+        break;
+      case 'quarterly':
+        end.setMonth(end.getMonth() + 3);
+        break;
+      case 'yearly':
+        end.setFullYear(end.getFullYear() + 1);
+        break;
+    }
+    
+    setFormData(prev => ({
+      ...prev,
+      end_date: end.toISOString().split('T')[0]
+    }));
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -29,33 +83,13 @@ export default function BudgetForm({ onClose, onSuccess }: BudgetFormProps) {
       [name]: value
     }));
 
-    // Auto-calculate end_date based on period_type and start_date
-    if (name === 'period_type' || name === 'start_date') {
-      const startDate = name === 'start_date' ? new Date(value) : new Date(formData.start_date);
+    // Auto-calculate end_date based on period_type and start_date (only in create mode)
+    if (!isEditMode && (name === 'period_type' || name === 'start_date')) {
+      const startDate = name === 'start_date' ? value : formData.start_date;
       const periodType = name === 'period_type' ? value : formData.period_type;
       
       if (startDate && periodType) {
-        const endDate = new Date(startDate);
-        
-        switch (periodType) {
-          case 'weekly':
-            endDate.setDate(endDate.getDate() + 7);
-            break;
-          case 'monthly':
-            endDate.setMonth(endDate.getMonth() + 1);
-            break;
-          case 'quarterly':
-            endDate.setMonth(endDate.getMonth() + 3);
-            break;
-          case 'yearly':
-            endDate.setFullYear(endDate.getFullYear() + 1);
-            break;
-        }
-        
-        setFormData(prev => ({
-          ...prev,
-          end_date: endDate.toISOString().split('T')[0]
-        }));
+        calculateEndDate(periodType, startDate);
       }
     }
   };
@@ -102,8 +136,14 @@ export default function BudgetForm({ onClose, onSuccess }: BudgetFormProps) {
       };
 
       // Submit to API
-      const response = await fetch('http://localhost:8000/api/budgets', {
-        method: 'POST',
+      const url = isEditMode 
+        ? `http://localhost:8000/api/budgets/${budget.id}`
+        : 'http://localhost:8000/api/budgets';
+      
+      const method = isEditMode ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method: method,
         headers: {
           'Content-Type': 'application/json',
         },
@@ -112,7 +152,7 @@ export default function BudgetForm({ onClose, onSuccess }: BudgetFormProps) {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || 'Failed to create budget');
+        throw new Error(errorData.detail || `Failed to ${isEditMode ? 'update' : 'create'} budget`);
       }
 
       // Success
@@ -130,7 +170,16 @@ export default function BudgetForm({ onClose, onSuccess }: BudgetFormProps) {
       <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full my-8">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-2xl font-bold text-gray-900">Create New Budget</h2>
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">
+              {isEditMode ? 'Edit Budget' : isFromTemplate ? `Create Budget from "${template?.name}" Template` : 'Create New Budget'}
+            </h2>
+            {isFromTemplate && (
+              <p className="text-sm text-gray-600 mt-1">
+                Template values are pre-filled. You can customize them before creating.
+              </p>
+            )}
+          </div>
           <button
             onClick={onClose}
             disabled={isSubmitting}
@@ -327,10 +376,10 @@ export default function BudgetForm({ onClose, onSuccess }: BudgetFormProps) {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                  <span>Creating...</span>
+                  <span>{isEditMode ? 'Updating...' : 'Creating...'}</span>
                 </>
               ) : (
-                <span>Create Budget</span>
+                <span>{isEditMode ? 'Update Budget' : 'Create Budget'}</span>
               )}
             </button>
           </div>

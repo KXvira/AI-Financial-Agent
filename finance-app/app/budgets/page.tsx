@@ -4,6 +4,10 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import BudgetCard from '@/components/BudgetCard';
 import BudgetForm from '@/components/BudgetForm';
+import BudgetAnalytics from '@/components/BudgetAnalytics';
+import TemplateLibrary from '@/components/TemplateLibrary';
+import { exportBudgetsToPDF, exportBudgetsToExcel } from '@/utils/budgetExport';
+import { BudgetTemplate } from '@/types/budget';
 
 interface Budget {
   id: string;
@@ -40,6 +44,9 @@ export default function BudgetsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [editingBudget, setEditingBudget] = useState<Budget | null>(null);
+  const [showTemplateLibrary, setShowTemplateLibrary] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<BudgetTemplate | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>('all');
 
   useEffect(() => {
@@ -84,6 +91,7 @@ export default function BudgetsPage() {
 
   const handleBudgetCreated = () => {
     setShowCreateForm(false);
+    setEditingBudget(null);
     fetchBudgets();
     fetchSummary();
   };
@@ -91,6 +99,16 @@ export default function BudgetsPage() {
   const handleBudgetDeleted = () => {
     fetchBudgets();
     fetchSummary();
+  };
+
+  const handleEditBudget = (budget: Budget) => {
+    setEditingBudget(budget);
+  };
+
+  const handleSelectTemplate = (template: BudgetTemplate) => {
+    setSelectedTemplate(template);
+    setShowTemplateLibrary(false);
+    setShowCreateForm(true);
   };
 
   const getUtilizationPercentage = (budget: Budget) => {
@@ -120,13 +138,49 @@ export default function BudgetsPage() {
                 Track and manage your budgets across different categories
               </p>
             </div>
-            <button
-              onClick={() => setShowCreateForm(true)}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center space-x-2"
-            >
-              <span className="text-xl">+</span>
-              <span>Create Budget</span>
-            </button>
+            <div className="flex items-center space-x-3">
+              {/* Export Buttons */}
+              {budgets.length > 0 && (
+                <>
+                  <button
+                    onClick={() => exportBudgetsToPDF(budgets, summary)}
+                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium flex items-center space-x-2"
+                    title="Export to PDF"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                    </svg>
+                    <span>PDF</span>
+                  </button>
+                  <button
+                    onClick={() => exportBudgetsToExcel(budgets, summary)}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center space-x-2"
+                    title="Export to Excel"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <span>Excel</span>
+                  </button>
+                </>
+              )}
+              <button
+                onClick={() => setShowTemplateLibrary(true)}
+                className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium flex items-center space-x-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+                </svg>
+                <span>Templates</span>
+              </button>
+              <button
+                onClick={() => setShowCreateForm(true)}
+                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center space-x-2"
+              >
+                <span className="text-xl">+</span>
+                <span>Create Budget</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -296,6 +350,7 @@ export default function BudgetsPage() {
                     key={budget.id}
                     budget={budget}
                     onDelete={handleBudgetDeleted}
+                    onEdit={() => handleEditBudget(budget)}
                   />
                 ))}
               </div>
@@ -322,13 +377,37 @@ export default function BudgetsPage() {
             )}
           </>
         )}
+
+        {/* Budget Analytics Section */}
+        {!loading && budgets.length > 0 && <BudgetAnalytics />}
       </div>
 
       {/* Create Budget Modal */}
       {showCreateForm && (
         <BudgetForm
-          onClose={() => setShowCreateForm(false)}
+          onClose={() => {
+            setShowCreateForm(false);
+            setSelectedTemplate(null);
+          }}
           onSuccess={handleBudgetCreated}
+          template={selectedTemplate}
+        />
+      )}
+
+      {/* Edit Budget Modal */}
+      {editingBudget && (
+        <BudgetForm
+          budget={editingBudget}
+          onClose={() => setEditingBudget(null)}
+          onSuccess={handleBudgetCreated}
+        />
+      )}
+
+      {/* Template Library Modal */}
+      {showTemplateLibrary && (
+        <TemplateLibrary
+          onClose={() => setShowTemplateLibrary(false)}
+          onSelectTemplate={handleSelectTemplate}
         />
       )}
     </div>

@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useAuth, withAuth } from '../contexts/AuthContext';
 import { useDashboard, formatCurrency, formatPercentage } from '../hooks/useDashboard';
 import { SystemStatusWidget } from '../components/SystemStatusWidget';
+import BudgetWidget from '../components/BudgetWidget';
 
 function Dashboard() {
   const { user } = useAuth();
@@ -87,6 +88,11 @@ function Dashboard() {
           {/* System Status Widget */}
           <div className="mb-6">
             <SystemStatusWidget />
+          </div>
+
+          {/* Budget Widget */}
+          <div className="mb-6">
+            <BudgetWidget />
           </div>
         </>
       )}

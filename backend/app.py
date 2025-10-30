@@ -181,6 +181,14 @@ except ImportError as e:
     print(f"❌ Budget router import failed: {e}")
     budget_router = None
 
+# Import budget template router (Budget Templates)
+try:
+    from routers.budget_template_router import router as budget_template_router
+    print("✅ Budget template router imported successfully")
+except ImportError as e:
+    print(f"❌ Budget template router import failed: {e}")
+    budget_template_router = None
+
 # Flag to track if all imports were successful
 all_imports_successful = all([
     auth_router is not None,
@@ -292,6 +300,10 @@ if expenses_router:
 if budget_router:
     app.include_router(budget_router)
     print("✅ Budget router included in app")
+
+if budget_template_router:
+    app.include_router(budget_template_router)
+    print("✅ Budget template router included in app")
     
 # Initialize database connection and state (if database was imported)
 if Database:

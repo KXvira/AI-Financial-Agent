@@ -9,6 +9,8 @@ from backend.models.budget import (
     BudgetAnalytics, BudgetAlert, BudgetStatus, AlertLevel, PeriodType
 )
 from backend.database.mongodb import Database
+from backend.services.budget_notification_service import BudgetNotificationService
+import os
 
 logger = logging.getLogger("financial-agent.budget")
 
@@ -20,6 +22,8 @@ class BudgetService:
         self.db = Database.get_instance()
         self.budgets_collection = self.db.db["budgets"]
         self.expenses_collection = self.db.db["expenses"]
+        self.notification_service = BudgetNotificationService()
+        self.alert_email = os.getenv("BUDGET_ALERT_EMAIL", "admin@example.com")
         logger.info("BudgetService initialized")
     
     async def create_budget(self, budget_data: BudgetCreate) -> Budget:
@@ -558,7 +562,7 @@ class BudgetService:
     
     async def _check_budget_alerts(self, budget: Budget) -> Optional[BudgetAlert]:
         """
-        Check if budget requires alert
+        Check if budget requires alert and send notification email
         
         Args:
             budget: Budget to check
@@ -567,12 +571,16 @@ class BudgetService:
             BudgetAlert if alert should be triggered, None otherwise
         """
         try:
+            # Store previous alert level
+            previous_alert_level = budget.alert_level
+            
+            # Update alert level based on current utilization
             alert_level = budget.update_alert_level()
             
             if alert_level == AlertLevel.NONE:
                 return None
             
-            # Create alert
+            # Create alert message
             if alert_level == AlertLevel.EXCEEDED:
                 message = f"Budget exceeded! Spent ${budget.actual_spent:.2f} of ${budget.amount:.2f} ({budget.utilization_percentage:.1f}%)"
             elif alert_level == AlertLevel.CRITICAL:
@@ -591,6 +599,25 @@ class BudgetService:
             )
             
             logger.warning(f"Budget alert triggered: {message}")
+            
+            # Send email notification if alert level changed or is critical/exceeded
+            should_send_email = (
+                previous_alert_level != alert_level or 
+                alert_level in [AlertLevel.CRITICAL, AlertLevel.EXCEEDED]
+            )
+            
+            if should_send_email:
+                try:
+                    await self.notification_service.send_budget_alert(
+                        budget=budget,
+                        recipient_email=self.alert_email,
+                        recipient_name="Budget Administrator"
+                    )
+                    logger.info(f"Budget alert email sent for {budget.category}")
+                except Exception as email_error:
+                    logger.error(f"Failed to send budget alert email: {str(email_error)}")
+                    # Don't fail the whole operation if email fails
+            
             return alert
             
         except Exception as e:
