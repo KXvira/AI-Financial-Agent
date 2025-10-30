@@ -273,6 +273,65 @@ class BudgetService:
             logger.error(f"Error updating budget spent: {str(e)}")
             raise
     
+    async def process_expense_transaction(
+        self, 
+        category: str, 
+        amount: float, 
+        transaction_date: Optional[date] = None,
+        user_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Process an expense transaction and update related budgets
+        
+        This method is called when a new expense is created to automatically
+        update matching budgets.
+        
+        Args:
+            category: Expense category
+            amount: Expense amount
+            transaction_date: Transaction date (defaults to today)
+            user_id: Optional user ID
+            
+        Returns:
+            Dictionary with update results and alerts
+        """
+        try:
+            if transaction_date is None:
+                transaction_date = date.today()
+            
+            # Update matching budgets
+            updated_budget_ids = await self.update_budget_spent(category, amount, transaction_date)
+            
+            # Collect alerts for budgets that need attention
+            alerts = []
+            for budget_id in updated_budget_ids:
+                budget = await self.get_budget(budget_id)
+                if budget:
+                    alert = await self._check_budget_alerts(budget)
+                    if alert:
+                        alerts.append(alert.dict())
+            
+            result = {
+                "updated_budgets": len(updated_budget_ids),
+                "budget_ids": updated_budget_ids,
+                "alerts": alerts,
+                "category": category,
+                "amount": amount,
+                "date": transaction_date.isoformat()
+            }
+            
+            logger.info(f"Processed expense transaction: {category} ${amount:.2f} - Updated {len(updated_budget_ids)} budgets")
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error processing expense transaction: {str(e)}")
+            return {
+                "updated_budgets": 0,
+                "budget_ids": [],
+                "alerts": [],
+                "error": str(e)
+            }
+    
     async def get_budget_summary(self, user_id: Optional[str] = None) -> BudgetSummary:
         """
         Get budget summary statistics

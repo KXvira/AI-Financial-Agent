@@ -21,6 +21,12 @@ from .service import ReceiptService
 from .templates_service import ReceiptTemplateService
 from .adapter import ReceiptAdapter
 from backend.database.mongodb import get_database, Database
+from backend.services.budget_integration import (
+    sync_expense_with_budgets,
+    extract_category_from_receipt,
+    extract_amount_from_receipt,
+    extract_date_from_receipt
+)
 
 
 router = APIRouter(prefix="/receipts", tags=["receipts"])
@@ -48,7 +54,8 @@ def get_template_service(db: Database = Depends(get_database)) -> ReceiptTemplat
 @router.post("/generate", response_model=Receipt, status_code=201)
 async def generate_receipt(
     request: ReceiptGenerateRequest,
-    service: ReceiptService = Depends(get_receipt_service)
+    service: ReceiptService = Depends(get_receipt_service),
+    db: Database = Depends(get_database)
 ):
     """
     Generate a new receipt
@@ -63,6 +70,31 @@ async def generate_receipt(
     """
     try:
         receipt = await service.generate_receipt(request)
+        
+        # Sync with budgets if this is an expense-type receipt
+        if request.receipt_type in [ReceiptType.EXPENSE, ReceiptType.REFUND]:
+            try:
+                # Get receipt data for category extraction
+                receipt_doc = await db.db.receipts.find_one({"_id": ObjectId(receipt.id)})
+                if receipt_doc:
+                    category = extract_category_from_receipt(receipt_doc)
+                    amount = extract_amount_from_receipt(receipt_doc)
+                    trans_date = extract_date_from_receipt(receipt_doc)
+                    
+                    # Sync with budgets
+                    budget_result = await sync_expense_with_budgets(
+                        category=category,
+                        amount=amount,
+                        transaction_date=trans_date
+                    )
+                    
+                    # Log if any alerts were triggered
+                    if budget_result.get("alerts"):
+                        print(f"Budget alerts triggered for {category}: {len(budget_result['alerts'])} alerts")
+            except Exception as e:
+                # Don't fail receipt generation if budget sync fails
+                print(f"Warning: Budget sync failed: {str(e)}")
+        
         return receipt
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error generating receipt: {str(e)}")
@@ -318,6 +350,28 @@ async def create_receipt_from_ocr(
             {"_id": ObjectId(receipt.id)},
             {"$set": {"metadata.ocr_image_path": image_filename}}
         )
+        
+        # Sync with budgets for expense tracking
+        try:
+            receipt_doc = await db.db.receipts.find_one({"_id": ObjectId(receipt.id)})
+            if receipt_doc:
+                category = extract_category_from_receipt(receipt_doc)
+                amount = extract_amount_from_receipt(receipt_doc)
+                trans_date = extract_date_from_receipt(receipt_doc)
+                
+                # Sync with budgets
+                budget_result = await sync_expense_with_budgets(
+                    category=category,
+                    amount=amount,
+                    transaction_date=trans_date
+                )
+                
+                # Log budget alerts
+                if budget_result.get("alerts"):
+                    print(f"Budget alerts from OCR upload: {category} - {len(budget_result['alerts'])} alerts")
+        except Exception as e:
+            # Don't fail receipt generation if budget sync fails
+            print(f"Warning: Budget sync from OCR failed: {str(e)}")
         
         return receipt
         
