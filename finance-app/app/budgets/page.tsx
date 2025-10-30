@@ -192,7 +192,7 @@ export default function BudgetsPage() {
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Total Budgeted</p>
                   <p className="text-2xl font-bold text-gray-900">
-                    ${summary.total_budgeted.toLocaleString()}
+                    KSh {summary.total_budgeted.toLocaleString()}
                   </p>
                 </div>
                 <div className="p-3 bg-blue-100 rounded-lg">
@@ -208,7 +208,7 @@ export default function BudgetsPage() {
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Remaining</p>
                   <p className="text-2xl font-bold text-gray-900">
-                    ${summary.total_remaining.toLocaleString()}
+                    KSh {summary.total_remaining.toLocaleString()}
                   </p>
                 </div>
                 <div className="p-3 bg-green-100 rounded-lg">
