@@ -1,397 +1,1145 @@
 """
-Financial reporting and monitoring service
+Service for generating financial reports and analytics
 """
-import logging
 from typing import Dict, Any, List, Optional
-import json
 from datetime import datetime, timedelta
+import logging
 
-from ai_agent.gemini import GeminiService
+from database.mongodb import Database
+from .models import (
+    IncomeStatementReport,
+    RevenueSection,
+    ExpenseSection,
+    CashFlowReport,
+    CashFlowInflows,
+    CashFlowOutflows,
+    ARAgingReport,
+    AgingBucket,
+    DashboardMetrics,
+    ReportTypeInfo,
+    ReportTypesResponse,
+)
 
 logger = logging.getLogger("financial-agent.reporting")
 
+
 class ReportingService:
-    """
-    Service for generating financial reports and monitoring
-    """
+    """Service for generating various financial reports"""
     
-    def __init__(self):
-        self.gemini_service = GeminiService()
+    def __init__(self, db: Database):
+        self.db = db
+    
+    async def get_report_types(self) -> ReportTypesResponse:
+        """Get list of available report types"""
+        report_types = [
+            ReportTypeInfo(
+                id="income_statement",
+                name="Income Statement",
+                description="Profit & Loss statement showing revenue and expenses for a period",
+                category="financial",
+                icon="📊",
+                requires_date_range=True,
+                available_formats=["json", "pdf", "excel", "csv"],
+                estimated_time="2-3 seconds"
+            ),
+            ReportTypeInfo(
+                id="cash_flow",
+                name="Cash Flow Statement",
+                description="Shows cash inflows and outflows during a period",
+                category="financial",
+                icon="💰",
+                requires_date_range=True,
+                available_formats=["json", "pdf", "excel", "csv"],
+                estimated_time="2-3 seconds"
+            ),
+            ReportTypeInfo(
+                id="ar_aging",
+                name="Accounts Receivable Aging",
+                description="Outstanding invoices grouped by age (current, 30, 60, 90+ days)",
+                category="receivables",
+                icon="📅",
+                requires_date_range=False,
+                available_formats=["json", "pdf", "excel", "csv"],
+                estimated_time="1-2 seconds"
+            ),
+            ReportTypeInfo(
+                id="dashboard_metrics",
+                name="Dashboard Metrics",
+                description="Key performance indicators and real-time metrics",
+                category="analytics",
+                icon="📈",
+                requires_date_range=False,
+                available_formats=["json"],
+                estimated_time="1 second"
+            ),
+        ]
         
-    async def generate_financial_report(self, 
-                                  report_type: str, 
-                                  start_date: str, 
-                                  end_date: str,
-                                  filters: Dict[str, Any] = None) -> Dict[str, Any]:
-        """
-        Generate a financial report
+        categories = list(set(rt.category for rt in report_types))
         
-        Args:
-            report_type: Type of report to generate (e.g., "cash_flow", "revenue", "expenses")
-            start_date: Start date for the report (YYYY-MM-DD)
-            end_date: End date for the report (YYYY-MM-DD)
-            filters: Additional filters for the report
+        return ReportTypesResponse(
+            report_types=report_types,
+            total=len(report_types),
+            categories=sorted(categories)
+        )
+    
+    async def generate_income_statement(
+        self,
+        start_date: str,
+        end_date: str,
+        filters: Optional[Dict[str, Any]] = None
+    ) -> IncomeStatementReport:
+        """Generate income statement for date range - based on working demo script"""
+        logger.info(f"Generating income statement from {start_date} to {end_date}")
+        
+        if filters is None:
+            filters = {}
+        
+        # Convert date strings for comparison
+        start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+        end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+        
+        # Revenue from paid invoices
+        # Note: Dates in DB are strings, so we fetch all and filter in Python
+        invoice_match = {}
+        if "customer_id" in filters:
+            invoice_match["customer_id"] = filters["customer_id"]
+        
+                # Get all invoices (we'll filter by date after)
+        all_invoices = await self.db.invoices.find(invoice_match).to_list(None)
+        
+        logger.info(f"Fetched {len(all_invoices)} invoices from database")
+        
+        # Filter by date in Python since dates are strings
+        from dateutil import parser as date_parser
+        filtered_invoices = []
+        date_parse_errors = 0
+        sample_dates = []
+        for i, invoice in enumerate(all_invoices):
+            issue_date_str = invoice.get("issue_date", invoice.get("date", ""))
+            if not issue_date_str:
+                # Fallback to created_at if issue_date is missing
+                issue_date_str = invoice.get("created_at", "")
             
-        Returns:
-            Dict with the report data
-        """
-        try:
-            if filters is None:
-                filters = {}
+            # Collect first 5 samples for debugging
+            if i < 5:
+                sample_dates.append({
+                    'inv_num': invoice.get('invoice_number', 'N/A'),
+                    'issue_date': str(issue_date_str)[:20],  # Truncate for logging
+                    'type': type(issue_date_str).__name__
+                })
+            
+            # Try to parse date, use start_date as fallback if missing/invalid
+            try:
+                if isinstance(issue_date_str, datetime):
+                    invoice_date = issue_date_str
+                elif issue_date_str:
+                    invoice_date = date_parser.parse(str(issue_date_str))
+                else:
+                    # No date found - use start_date so it's included in the range
+                    invoice_date = start_dt
                 
-            # Log the report generation attempt
-            logger.info(f"Generating {report_type} report from {start_date} to {end_date} with filters: {json.dumps(filters)}")
-            
-            # In a real implementation, we would fetch the financial data from the database
-            # financial_data = await self.db.get_financial_data(start_date, end_date, filters)
-            
-            # For demonstration purposes, we'll use mock financial data
-            financial_data = self._get_mock_financial_data(report_type, start_date, end_date)
-            
-            # Use Gemini to generate insights for the report
-            financial_data["report_type"] = report_type
-            financial_data["start_date"] = start_date
-            financial_data["end_date"] = end_date
-            financial_data["filters"] = filters
-            
-            insights = await self.gemini_service.generate_financial_insights(financial_data)
-            
-            # Combine the data and insights
-            report = {
-                "report_type": report_type,
-                "start_date": start_date,
-                "end_date": end_date,
-                "filters": filters,
-                "generated_at": datetime.now().isoformat(),
-                "data": financial_data,
-                "insights": insights
-            }
-            
-            # In a real implementation, we would store the report
-            # await self.db.store_report(report)
-            
-            return report
-            
-        except Exception as e:
-            logger.error(f"Error generating {report_type} report: {str(e)}")
-            raise
-    
-    async def get_dashboard_metrics(self) -> Dict[str, Any]:
-        """
-        Get real-time dashboard metrics
+                if start_dt <= invoice_date <= end_dt:
+                    filtered_invoices.append(invoice)
+            except Exception as e:
+                date_parse_errors += 1
+                # If date parsing fails, include the invoice anyway by using start_date
+                filtered_invoices.append(invoice)
+                logger.debug(f"Date parse error for invoice {invoice.get('invoice_number')}: {e}, including anyway")
         
-        Returns:
-            Dict with dashboard metrics
-        """
-        try:
-            # Log the dashboard metrics request
-            logger.info("Getting dashboard metrics")
-            
-            # In a real implementation, we would fetch the metrics from the database
-            # metrics = await self.db.get_dashboard_metrics()
-            
-            # For demonstration purposes, we'll use mock metrics
-            metrics = self._get_mock_dashboard_metrics()
-            
-            return metrics
-            
-        except Exception as e:
-            logger.error(f"Error getting dashboard metrics: {str(e)}")
-            raise
-    
-    async def monitor_transaction_anomalies(self) -> Dict[str, Any]:
-        """
-        Monitor for transaction anomalies
+        logger.info(f"Sample invoice dates: {sample_dates}")
+        logger.info(f"After date filtering: {len(filtered_invoices)} invoices (parse errors: {date_parse_errors})")
         
-        Returns:
-            Dict with anomaly detection results
-        """
-        try:
-            # Log the anomaly detection request
-            logger.info("Monitoring for transaction anomalies")
-            
-            # In a real implementation, we would fetch recent transactions
-            # recent_transactions = await self.db.get_recent_transactions()
-            # historical_transactions = await self.db.get_historical_transactions()
-            
-            # For demonstration purposes, we'll use mock transactions
-            recent_transactions = self._get_mock_recent_transactions()
-            historical_transactions = self._get_mock_historical_transactions()
-            
-            results = {
-                "total_transactions": len(recent_transactions),
-                "anomalies_detected": 0,
-                "anomalies": []
-            }
-            
-            # Process each transaction
-            for transaction in recent_transactions:
-                # Use Gemini to detect anomalies
-                anomaly_result = await self.gemini_service.detect_anomalies(
-                    transaction, historical_transactions
-                )
-                
-                if anomaly_result.get("is_anomalous", False):
-                    results["anomalies_detected"] += 1
-                    results["anomalies"].append({
-                        "transaction_id": transaction.get("id", "unknown"),
-                        "anomaly_result": anomaly_result
-                    })
-                    
-                    # In a real implementation, we would flag the anomaly
-                    # await self.db.flag_transaction_anomaly(transaction, anomaly_result)
-            
-            return results
-            
-        except Exception as e:
-            logger.error(f"Error monitoring for transaction anomalies: {str(e)}")
-            raise
-    
-    async def schedule_recurring_report(self, 
-                                  report_config: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Schedule a recurring report
+        # Calculate totals
+        total_invoices = len(filtered_invoices)
+        total_invoiced = sum(inv.get("total_amount", inv.get("amount", 0)) for inv in filtered_invoices)
         
-        Args:
-            report_config: Configuration for the recurring report
-            
-        Returns:
-            Dict with scheduling result
-        """
-        try:
-            # Log the scheduling request
-            logger.info(f"Scheduling recurring report: {json.dumps(report_config)}")
-            
-            # Validate the schedule
-            schedule = report_config.get("schedule")
-            if not schedule:
-                raise ValueError("Report schedule is required")
-                
-            # In a real implementation, we would store the schedule
-            # schedule_id = await self.db.store_report_schedule(report_config)
-            
-            # For demonstration purposes, we'll just return a success message
-            return {
-                "success": True,
-                "message": "Report scheduled successfully",
-                "schedule_id": "SCH-001",
-                "next_run": self._calculate_next_run(schedule)
-            }
-            
-        except Exception as e:
-            logger.error(f"Error scheduling recurring report: {str(e)}")
-            raise
-    
-    def _calculate_next_run(self, schedule: Dict[str, Any]) -> str:
-        """
-        Calculate the next run time for a schedule
-        """
-        frequency = schedule.get("frequency")
-        now = datetime.now()
+        paid_invoices_list = [inv for inv in filtered_invoices if inv.get("status") == "paid"]
+        paid_invoices = len(paid_invoices_list)
+        total_paid = sum(inv.get("total_amount", inv.get("amount", 0)) for inv in paid_invoices_list)
         
-        if frequency == "daily":
-            next_run = now + timedelta(days=1)
-        elif frequency == "weekly":
-            next_run = now + timedelta(weeks=1)
-        elif frequency == "monthly":
-            # Approximate a month as 30 days
-            next_run = now + timedelta(days=30)
-        else:
-            next_run = now + timedelta(days=1)  # Default to daily
+        total_pending = total_invoiced - total_paid
         
-        return next_run.isoformat()
-    
-    def _get_mock_financial_data(self, report_type: str, start_date: str, end_date: str) -> Dict[str, Any]:
-        """
-        Get mock financial data for testing
-        """
-        # Convert start and end dates to datetime objects
-        start = datetime.fromisoformat(start_date)
-        end = datetime.fromisoformat(end_date)
+        revenue_section = RevenueSection(
+            total_revenue=total_paid,
+            invoiced_amount=total_invoiced,
+            paid_amount=total_paid,
+            pending_amount=total_pending,
+            invoice_count=total_invoices,
+            paid_invoice_count=paid_invoices
+        )
         
-        # Generate some mock data based on the report type
-        if report_type == "cash_flow":
-            return {
-                "cash_inflow": {
-                    "sales": 120000,
-                    "accounts_receivable": 45000,
-                    "investments": 30000,
-                    "total": 195000
-                },
-                "cash_outflow": {
-                    "expenses": 75000,
-                    "inventory": 25000,
-                    "payroll": 45000,
-                    "taxes": 15000,
-                    "total": 160000
-                },
-                "net_cash_flow": 35000,
-                "daily_cash_balance": [
-                    {"date": "2025-06-01", "balance": 100000},
-                    {"date": "2025-06-02", "balance": 105000},
-                    {"date": "2025-06-03", "balance": 115000},
-                    # More daily balances...
-                    {"date": "2025-06-30", "balance": 135000}
-                ]
-            }
-        elif report_type == "revenue":
-            return {
-                "total_revenue": 150000,
-                "by_category": {
-                    "product_sales": 80000,
-                    "services": 55000,
-                    "subscriptions": 15000
-                },
-                "by_customer": [
-                    {"customer": "ABC Corp", "amount": 45000},
-                    {"customer": "XYZ Ltd", "amount": 35000},
-                    {"customer": "123 Industries", "amount": 25000},
-                    # More customers...
-                ],
-                "monthly_trend": [
-                    {"month": "January", "amount": 125000},
-                    {"month": "February", "amount": 130000},
-                    {"month": "March", "amount": 140000},
-                    {"month": "April", "amount": 135000},
-                    {"month": "May", "amount": 145000},
-                    {"month": "June", "amount": 150000}
-                ]
-            }
-        elif report_type == "expenses":
-            return {
-                "total_expenses": 120000,
-                "by_category": {
-                    "rent": 20000,
-                    "utilities": 5000,
-                    "payroll": 60000,
-                    "marketing": 15000,
-                    "software": 8000,
-                    "office_supplies": 5000,
-                    "travel": 7000
-                },
-                "monthly_trend": [
-                    {"month": "January", "amount": 110000},
-                    {"month": "February", "amount": 105000},
-                    {"month": "March", "amount": 115000},
-                    {"month": "April", "amount": 118000},
-                    {"month": "May", "amount": 125000},
-                    {"month": "June", "amount": 120000}
-                ]
-            }
-        else:
-            return {
-                "message": f"No mock data available for report type: {report_type}"
-            }
+        # Expenses from receipts collection (using 'created_at' and OCR data)
+        expense_match = {
+            "$or": [
+                {"receipt_type": "expense"},
+                {"receipt_type": "refund"},
+                {"ocr_data.extracted_data.total_amount": {"$exists": True}}
+            ],
+            "created_at": {"$gte": start_dt, "$lte": end_dt}
+        }
+        
+        expense_receipts = await self.db.db["receipts"].find(expense_match).to_list(None)
+        
+        # Calculate expenses by category
+        expenses_by_category = {}
+        total_expenses = 0.0
+        
+        for receipt in expense_receipts:
+            # Get amount with priority: OCR data > tax breakdown > line items
+            amount = 0.0
+            category = "Other"
+            
+            if receipt.get("ocr_data"):
+                ocr_extracted = receipt["ocr_data"].get("extracted_data", {})
+                amount = ocr_extracted.get("total_amount", 0)
+                category = ocr_extracted.get("merchant_name", "Other")
+            elif receipt.get("tax_breakdown"):
+                amount = receipt["tax_breakdown"].get("gross_amount", 0)
+            elif receipt.get("line_items"):
+                amount = sum(item.get("total", 0) for item in receipt["line_items"])
+            
+            if amount > 0:
+                total_expenses += amount
+                expenses_by_category[category] = expenses_by_category.get(category, 0) + amount
+        
+        expense_count = len(expense_receipts)
+        
+        top_categories = []
+        for category, amount in sorted(expenses_by_category.items(), key=lambda x: x[1], reverse=True)[:5]:
+            percentage = (amount / total_expenses * 100) if total_expenses > 0 else 0
+            top_categories.append({
+                "category": category,
+                "amount": amount,
+                "percentage": round(percentage, 1)
+            })
+        
+        expense_section = ExpenseSection(
+            total_expenses=total_expenses,
+            by_category=expenses_by_category,
+            transaction_count=expense_count,
+            top_categories=top_categories
+        )
+        
+        # Calculations
+        net_income = total_paid - total_expenses
+        gross_profit = total_paid - total_expenses  # For service business
+        operating_income = gross_profit  # Same as gross profit for now
+        profit_margin = (net_income / total_paid * 100) if total_paid > 0 else 0.0
+        net_margin = (net_income / total_paid * 100) if total_paid > 0 else 0.0
+        avg_invoice = total_paid / paid_invoices if paid_invoices > 0 else 0.0
+        
+        metrics = {
+            "average_invoice_value": round(avg_invoice, 2),
+            "collection_rate": round((total_paid / total_invoiced * 100) if total_invoiced > 0 else 0, 1),
+            "expense_ratio": round((total_expenses / total_paid * 100) if total_paid > 0 else 0, 1),
+            "invoice_count": total_invoices,
+            "paid_invoice_count": paid_invoices,
+            "pending_invoice_count": total_invoices - paid_invoices
+        }
+        
+        collection_rate = round((total_paid / total_invoiced * 100) if total_invoiced > 0 else 0, 1)
+        
+        return IncomeStatementReport(
+            period_start=start_date,
+            period_end=end_date,
+            generated_at=datetime.now().isoformat(),
+            revenue=revenue_section,
+            expenses=expense_section,
+            gross_profit=round(gross_profit, 2),
+            operating_income=round(operating_income, 2),
+            net_income=round(net_income, 2),
+            profit_margin=round(profit_margin, 2),
+            net_margin=round(net_margin, 2),
+            collection_rate=collection_rate,
+            metrics=metrics
+        )
     
-    def _get_mock_dashboard_metrics(self) -> Dict[str, Any]:
-        """
-        Get mock dashboard metrics for testing
-        """
-        return {
-            "cash_position": {
-                "current_balance": 135000,
-                "change_since_yesterday": 5000,
-                "pending_payables": 25000,
-                "pending_receivables": 40000
-            },
-            "revenue_metrics": {
-                "mtd": 75000,
-                "ytd": 780000,
-                "growth_yoy": 12.5
-            },
-            "expense_metrics": {
-                "mtd": 60000,
-                "ytd": 650000,
-                "largest_category": "payroll"
-            },
-            "payment_metrics": {
-                "paid_on_time_rate": 85,
-                "average_days_to_payment": 12,
-                "reconciliation_rate": 95
-            },
-            "recent_activity": [
-                {"type": "payment", "amount": 5000, "timestamp": "2025-06-07T09:15:30", "status": "reconciled"},
-                {"type": "invoice", "amount": 7500, "timestamp": "2025-06-07T10:20:45", "status": "sent"},
-                {"type": "expense", "amount": 1200, "timestamp": "2025-06-07T11:30:00", "status": "categorized"}
+    async def generate_cash_flow(
+        self,
+        start_date: str,
+        end_date: str,
+        filters: Optional[Dict[str, Any]] = None
+    ) -> CashFlowReport:
+        """Generate cash flow statement showing inflows and outflows"""
+        logger.info(f"Generating cash flow from {start_date} to {end_date}")
+        
+        if filters is None:
+            filters = {}
+        
+        # Parse dates
+        start_dt = datetime.fromisoformat(start_date)
+        end_dt = datetime.fromisoformat(end_date)
+        
+        # ========== CASH INFLOWS (Payment Transactions) ==========
+        
+        # Query for completed payment transactions
+        # Note: The actual MongoDB field values are lowercase (e.g., "completed", "pending")
+        # The API router capitalizes them in responses
+        inflow_match = {
+            "status": {"$in": ["completed", "successful", "paid"]}
+        }
+        
+        # Add date filter - MongoDB stores payment_date as datetime objects
+        if start_date and end_date:
+            inflow_match["payment_date"] = {
+                "$gte": start_dt,  # Use datetime object, not string
+                "$lte": end_dt
+            }
+        
+        logger.info(f"Inflow match query: {inflow_match}")
+        
+        # Use payments collection for inflows
+        inflow_count = await self.db.payments.count_documents(inflow_match)
+        
+        # Sum up amount field (the actual numeric field in MongoDB)
+        # Note: amountRaw is created by the API router, not stored in MongoDB
+        inflow_pipeline = [
+            {"$match": inflow_match},
+            {"$group": {
+                "_id": None,
+                "total": {"$sum": "$amount"}
+            }}
+        ]
+        
+        inflow_result = await self.db.payments.aggregate(inflow_pipeline).to_list(1)
+        total_inflows = inflow_result[0]["total"] if inflow_result else 0.0
+        
+        logger.info(f"Found {inflow_count} payment transactions with total inflows: {total_inflows:,.2f}")
+        
+        cash_inflows = CashFlowInflows(
+            total_inflows=round(total_inflows, 2),
+            customer_payments=round(total_inflows, 2),  # All inflows are customer payments
+            other_income=0.0,
+            transaction_count=inflow_count
+        )
+        
+        # ========== CASH OUTFLOWS (Expenses + Refunds) ==========
+        
+        # 1. Get expenses from receipts collection - use same logic as expenses API
+        expense_match = {
+            "$or": [
+                {"receipt_type": "expense"},
+                {"receipt_type": "refund"},
+                {"ocr_data.extracted_data.total_amount": {"$exists": True}}
             ]
         }
+        
+        if start_date and end_date:
+            expense_match["created_at"] = {
+                "$gte": start_dt,
+                "$lte": end_dt
+            }
+        
+        logger.info(f"Querying expenses with filter: {expense_match}")
+        
+        # Get all expense receipts
+        expense_receipts = await self.db.db["receipts"].find(expense_match).to_list(None)
+        
+        logger.info(f"Found {len(expense_receipts)} expense receipts")
+        
+        # Calculate total by iterating through receipts (same logic as expenses service)
+        total_expenses = 0.0
+        expenses_by_category = {}
+        
+        for receipt in expense_receipts:
+            amount = 0.0
+            
+            # Priority 1: OCR extracted data (most reliable)
+            if receipt.get("ocr_data"):
+                amount = receipt["ocr_data"]["extracted_data"].get("total_amount", 0)
+            
+            # Priority 2: Tax breakdown (for manual receipts)
+            elif receipt.get("tax_breakdown"):
+                tax_breakdown = receipt["tax_breakdown"]
+                amount = tax_breakdown.get("subtotal", 0) + tax_breakdown.get("vat_amount", 0)
+            
+            # Priority 3: Line items (for itemized receipts)
+            elif receipt.get("line_items"):
+                line_items = receipt["line_items"]
+                amount = sum(item.get("total", 0) for item in line_items)
+            
+            if amount > 0:
+                total_expenses += amount
+                
+                # Get category for breakdown
+                category = "Other Expenses"
+                if receipt.get("ocr_data"):
+                    category = receipt["ocr_data"]["extracted_data"].get("merchant_name", "Other Expenses")
+                elif receipt.get("category"):
+                    category = receipt["category"]
+                
+                expenses_by_category[category] = expenses_by_category.get(category, 0) + amount
+        
+        expense_count = len(expense_receipts)
+        
+        logger.info(f"Total expenses: Ksh {total_expenses:,.2f} from {expense_count} receipts")
+        logger.info(f"Expense categories: {list(expenses_by_category.keys())}")
+        
+        # 2. Get refunds from payments collection
+        refund_match = {
+            "status": {"$in": ["refunded", "Refunded", "failed", "Failed", "returned", "Returned"]}
+        }
+        if start_date and end_date:
+            refund_match["payment_date"] = {
+                "$gte": start_dt,
+                "$lte": end_dt
+            }
+        
+        refund_count = await self.db.payments.count_documents(refund_match)
+        
+        # Calculate refunds using amount field
+        refund_pipeline = [
+            {"$match": refund_match},
+            {"$group": {
+                "_id": None,
+                "total": {"$sum": "$amount"}
+            }}
+        ]
+        
+        refund_result = await self.db.payments.aggregate(refund_pipeline).to_list(1)
+        total_refunds = round(refund_result[0]["total"], 2) if refund_result and refund_result[0].get("total") else 0.0
+        
+        # Combine expenses and refunds
+        total_outflows = total_expenses + total_refunds
+        outflow_count = expense_count + refund_count
+        
+        # Build outflows by category - use expense categories + refunds
+        outflows_by_category = {k: round(v, 2) for k, v in expenses_by_category.items()}
+        if total_refunds > 0:
+            outflows_by_category["Payment Refunds"] = total_refunds
+        
+        logger.info(f"Found {expense_count} expense transactions (Ksh {total_expenses:,.2f}) and {refund_count} refunds (Ksh {total_refunds:,.2f})")
+        logger.info(f"Total outflows: {total_outflows:,.2f} from {outflow_count} transactions")
+        
+        cash_outflows = CashFlowOutflows(
+            total_outflows=round(total_outflows, 2),
+            by_category=outflows_by_category,
+            transaction_count=outflow_count
+        )
+        
+        # ========== CALCULATIONS ==========
+        
+        net_cash_flow = total_inflows - total_outflows
+        
+        # Calculate opening balance (cash before this period - simplified)
+        # In a real system, you'd track actual cash balance
+        # For now, we'll use cumulative approach
+        opening_balance = 0.0  # Could be calculated from previous periods
+        closing_balance = opening_balance + net_cash_flow
+        
+        # Calculate burn rate and runway
+        burn_rate = None
+        runway_months = None
+        
+        if net_cash_flow < 0:
+            # Negative cash flow - calculate monthly burn
+            monthly_burn = abs(net_cash_flow)
+            burn_rate = monthly_burn
+            
+            if closing_balance > 0 and burn_rate > 0:
+                runway_months = closing_balance / burn_rate
+        
+        return CashFlowReport(
+            period_start=start_date,
+            period_end=end_date,
+            generated_at=datetime.now().isoformat(),
+            inflows=cash_inflows,
+            outflows=cash_outflows,
+            net_cash_flow=round(net_cash_flow, 2),
+            opening_balance=round(opening_balance, 2),
+            closing_balance=round(closing_balance, 2),
+            burn_rate=round(burn_rate, 2) if burn_rate else None,
+            runway_months=round(runway_months, 1) if runway_months else None
+        )
     
-    def _get_mock_recent_transactions(self) -> List[Dict[str, Any]]:
-        """
-        Get mock recent transactions for testing
-        """
-        return [
+    async def generate_ar_aging(
+        self,
+        as_of_date: Optional[str] = None,
+        filters: Optional[Dict[str, Any]] = None
+    ) -> ARAgingReport:
+        """Generate AR aging report showing outstanding invoices by age"""
+        if as_of_date is None:
+            as_of_date = datetime.now().strftime("%Y-%m-%d")
+        
+        logger.info(f"Generating AR aging as of {as_of_date}")
+        logger.info(f"Filters: {filters}")
+        
+        if filters is None:
+            filters = {}
+        
+        as_of_dt = datetime.fromisoformat(as_of_date)
+        
+        # ========== QUERY OUTSTANDING INVOICES (OPTIMIZED WITH AGGREGATION) ==========
+        
+        # Build aggregation pipeline for performance
+        # This replaces 800+ individual queries with ONE aggregation query
+        pipeline = [
+            # Step 1: Match outstanding invoices
             {
-                "id": "TRX-001",
-                "type": "payment",
-                "amount": 5000,
-                "timestamp": "2025-06-07T09:15:30",
-                "source": "M-Pesa",
-                "phone_number": "254712345678",
-                "description": "Payment for INV-001"
-            },
-            {
-                "id": "TRX-002",
-                "type": "payment",
-                "amount": 7500,  # Unusual amount for this customer
-                "timestamp": "2025-06-07T10:20:45",
-                "source": "M-Pesa",
-                "phone_number": "254723456789",
-                "description": "Payment for INV-002"
-            },
-            {
-                "id": "TRX-003",
-                "type": "payment",
-                "amount": 2000,
-                "timestamp": "2025-06-07T01:30:00",  # Unusual time
-                "source": "M-Pesa",
-                "phone_number": "254734567890",
-                "description": "Payment for INV-003"
+                "$match": {
+                    "status": {"$in": ["pending", "sent", "unpaid", "overdue"]}
+                }
             }
         ]
+        
+        # Add customer filter if provided
+        if "customer_id" in filters:
+            pipeline[0]["$match"]["customer_id"] = filters["customer_id"]
+        
+        # Step 2: Lookup invoice items (replaces N individual queries)
+        pipeline.append({
+            "$lookup": {
+                "from": "invoice_items",
+                "localField": "invoice_id",
+                "foreignField": "invoice_id",
+                "as": "items"
+            }
+        })
+        
+        # Step 3: Lookup customer info (replaces N individual queries)
+        pipeline.append({
+            "$lookup": {
+                "from": "customers",
+                "localField": "customer_id",
+                "foreignField": "customer_id",
+                "as": "customer_info"
+            }
+        })
+        
+        # Step 4: Calculate totals and extract customer name
+        pipeline.append({
+            "$addFields": {
+                # Calculate total from items
+                "calculated_total": {
+                    "$cond": {
+                        "if": {"$gt": [{"$size": "$items"}, 0]},
+                        "then": {"$sum": "$items.line_total"},
+                        "else": {"$ifNull": ["$total_amount", {"$ifNull": ["$total", {"$ifNull": ["$amount", 0]}]}]}
+                    }
+                },
+                # Extract customer name from lookup result
+                "customer_name": {
+                    "$ifNull": [
+                        {"$arrayElemAt": ["$customer_info.name", 0]},
+                        {"$arrayElemAt": ["$customer_info.customer_name", 0]},
+                        {"$arrayElemAt": ["$customer_info.company_name", 0]},
+                        "$customer_name",  # Fallback to existing field
+                        "Unknown"
+                    ]
+                }
+            }
+        })
+        
+        # Step 5: Remove the lookup arrays to reduce memory
+        pipeline.append({
+            "$project": {
+                "items": 0,
+                "customer_info": 0
+            }
+        })
+        
+        # Execute optimized aggregation (ONE query instead of 800+)
+        logger.info("Executing optimized AR aging aggregation pipeline...")
+        outstanding_invoices = await self.db.invoices.aggregate(pipeline).to_list(None)
+        
+        # Calculate total outstanding
+        total_outstanding = sum(inv.get("calculated_total", 0) for inv in outstanding_invoices)
+        total_invoices = len(outstanding_invoices)
+        
+        logger.info(f"Found {total_invoices} outstanding invoices with total: {total_outstanding:,.2f} (via aggregation)")
+        
+        # ========== CREATE AGING BUCKETS ==========
+        
+        bucket_definitions = [
+            {"name": "Current (0-30 days)", "min_days": 0, "max_days": 30},
+            {"name": "31-60 days", "min_days": 31, "max_days": 60},
+            {"name": "61-90 days", "min_days": 61, "max_days": 90},
+            {"name": "Over 90 days", "min_days": 91, "max_days": None},
+        ]
+        
+        buckets = []
+        
+        for bucket_def in bucket_definitions:
+            bucket_invoices = []
+            bucket_total = 0.0
+            
+            for invoice in outstanding_invoices:
+                # Calculate days outstanding
+                issue_date_str = invoice.get("issue_date", invoice.get("date", ""))
+                if not issue_date_str:
+                    # If no issue_date, try created_at or use current date
+                    issue_date_str = invoice.get("created_at", as_of_date)
+                
+                try:
+                    # Parse date string - handle multiple formats
+                    from dateutil import parser as date_parser
+                    if isinstance(issue_date_str, datetime):
+                        invoice_date = issue_date_str
+                    else:
+                        # Try parsing with dateutil (handles most formats)
+                        invoice_date = date_parser.parse(str(issue_date_str))
+                except Exception as e:
+                    # If parsing fails, log and use as_of_date (0 days outstanding)
+                    logger.warning(f"Failed to parse date '{issue_date_str}' for invoice {invoice.get('invoice_number', 'unknown')}: {e}")
+                    invoice_date = as_of_dt
+                
+                days_outstanding = (as_of_dt - invoice_date).days
+                
+                # Check if invoice belongs in this bucket
+                min_days = bucket_def["min_days"]
+                max_days = bucket_def["max_days"]
+                
+                in_bucket = False
+                if max_days is None:
+                    # 90+ bucket
+                    in_bucket = days_outstanding >= min_days
+                else:
+                    # Regular bucket
+                    in_bucket = min_days <= days_outstanding <= max_days
+                
+                if in_bucket:
+                    # Use calculated_total from invoice_items
+                    amount = invoice.get("calculated_total", invoice.get("amount", 0))
+                    
+                    # Format date for display
+                    if isinstance(invoice_date, datetime):
+                        date_issued_display = invoice_date.strftime("%Y-%m-%d")
+                    elif isinstance(issue_date_str, str) and issue_date_str:
+                        date_issued_display = issue_date_str.split()[0] if ' ' in issue_date_str else issue_date_str
+                    else:
+                        date_issued_display = "N/A"
+                    
+                    bucket_invoices.append({
+                        "invoice_id": str(invoice.get("_id")),
+                        "invoice_number": invoice.get("invoice_number", "N/A"),
+                        "customer_name": invoice.get("customer_name", "Unknown"),
+                        "amount": round(amount, 2),
+                        "date_issued": date_issued_display,
+                        "days_outstanding": days_outstanding
+                    })
+                    bucket_total += amount
+            
+            # Calculate percentage
+            percentage = (bucket_total / total_outstanding * 100) if total_outstanding > 0 else 0.0
+            
+            # Sort invoices by days outstanding (descending) and limit to top 10
+            bucket_invoices.sort(key=lambda x: x["days_outstanding"], reverse=True)
+            
+            bucket = AgingBucket(
+                bucket_name=bucket_def["name"],
+                min_days=bucket_def["min_days"],
+                max_days=bucket_def["max_days"],
+                invoice_count=len(bucket_invoices),
+                total_amount=round(bucket_total, 2),
+                percentage=round(percentage, 1),
+                invoices=bucket_invoices[:10]  # Limit to top 10
+            )
+            
+            logger.info(f"Bucket '{bucket_def['name']}': {len(bucket_invoices)} invoices, Total: {bucket_total:,.2f} ({percentage:.1f}%)")
+            buckets.append(bucket)
+        
+        # ========== CALCULATE METRICS ==========
+        
+        # Current percentage (0-30 days)
+        current_amount = buckets[0].total_amount if buckets else 0.0
+        current_percentage = (current_amount / total_outstanding * 100) if total_outstanding > 0 else 0.0
+        
+        # Overdue percentage (31+ days)
+        overdue_amount = sum(bucket.total_amount for bucket in buckets[1:])
+        overdue_percentage = (overdue_amount / total_outstanding * 100) if total_outstanding > 0 else 0.0
+        
+        # Collection risk score (0-100, higher is riskier)
+        risk_score = 0.0
+        if total_outstanding > 0 and len(buckets) >= 4:
+            risk_score += (buckets[1].total_amount / total_outstanding) * 25  # 31-60: 25% weight
+            risk_score += (buckets[2].total_amount / total_outstanding) * 35  # 61-90: 35% weight
+            risk_score += (buckets[3].total_amount / total_outstanding) * 40  # 90+: 40% weight
+        
+        # ========== TOP CUSTOMERS WITH OUTSTANDING BALANCES ==========
+        
+        customer_totals = {}
+        for invoice in outstanding_invoices:
+            customer_name = invoice.get("customer_name", "Unknown")
+            # Use calculated_total from invoice_items
+            amount = invoice.get("calculated_total", invoice.get("amount", 0))
+            
+            if customer_name not in customer_totals:
+                customer_totals[customer_name] = {
+                    "customer_name": customer_name,
+                    "outstanding_amount": 0.0,
+                    "invoice_count": 0
+                }
+            
+            customer_totals[customer_name]["outstanding_amount"] += amount
+            customer_totals[customer_name]["invoice_count"] += 1
+        
+        # Sort and get top 5
+        top_customers = sorted(
+            customer_totals.values(),
+            key=lambda x: x["outstanding_amount"],
+            reverse=True
+        )[:5]
+        
+        # Round amounts
+        for customer in top_customers:
+            customer["outstanding_amount"] = round(customer["outstanding_amount"], 2)
+        
+        return ARAgingReport(
+            as_of_date=as_of_date,
+            generated_at=datetime.now().isoformat(),
+            total_outstanding=round(total_outstanding, 2),
+            total_invoices=total_invoices,
+            buckets=buckets,
+            current_percentage=round(current_percentage, 1),
+            overdue_percentage=round(overdue_percentage, 1),
+            collection_risk_score=round(risk_score, 1),
+            top_customers=top_customers
+        )
     
-    def _get_mock_historical_transactions(self) -> List[Dict[str, Any]]:
-        """
-        Get mock historical transactions for testing
-        """
-        return [
-            # Customer 1 history
+    async def get_dashboard_metrics(
+        self,
+        filters: Optional[Dict[str, Any]] = None
+    ) -> DashboardMetrics:
+        """Get comprehensive dashboard metrics from all collections"""
+        logger.info("Generating dashboard metrics")
+        
+        if filters is None:
+            filters = {}
+        
+        # ========== INVOICE METRICS ==========
+        
+        # Total invoices
+        total_invoices = await self.db.invoices.count_documents({})
+        
+        # Count by status
+        paid_invoices = await self.db.invoices.count_documents({"status": "paid"})
+        pending_invoices = await self.db.invoices.count_documents(
+            {"status": {"$in": ["pending", "sent", "unpaid"]}}
+        )
+        overdue_invoices = await self.db.invoices.count_documents({"status": "overdue"})
+        
+        # Total revenue (from paid invoices) - use total_amount field
+        paid_revenue_pipeline = [
+            {"$match": {"status": "paid"}},
+            {"$group": {"_id": None, "total": {"$sum": "$total_amount"}}}
+        ]
+        paid_revenue_result = await self.db.invoices.aggregate(paid_revenue_pipeline).to_list(None)
+        total_revenue = paid_revenue_result[0]["total"] if paid_revenue_result and paid_revenue_result[0].get("total") else 0.0
+        
+        # Total invoiced amount (all invoices) - use total_amount field
+        total_invoiced_pipeline = [
+            {"$group": {"_id": None, "total": {"$sum": "$total_amount"}}}
+        ]
+        total_invoiced_result = await self.db.invoices.aggregate(total_invoiced_pipeline).to_list(None)
+        total_invoiced = total_invoiced_result[0]["total"] if total_invoiced_result and total_invoiced_result[0].get("total") else 0.0
+        
+        # Outstanding amount (unpaid invoices)
+        total_outstanding = total_invoiced - total_revenue
+        
+        # Average invoice value
+        average_invoice_value = total_invoiced / total_invoices if total_invoices > 0 else 0.0
+        
+        # Collection rate
+        collection_rate = (total_revenue / total_invoiced * 100) if total_invoiced > 0 else 0.0
+        
+        # Days Sales Outstanding (DSO) - simplified calculation
+        # DSO = (Accounts Receivable / Total Credit Sales) * Number of Days
+        # Using 30 days as period
+        dso = (total_outstanding / total_revenue * 30) if total_revenue > 0 else 0.0
+        
+        # ========== CUSTOMER METRICS ==========
+        
+        total_customers = await self.db.customers.count_documents({})
+        
+        # Active customers (customers with at least one invoice)
+        active_customers_pipeline = [
+            {"$group": {"_id": "$customer_id"}},
+            {"$count": "count"}
+        ]
+        active_customers_result = await self.db.invoices.aggregate(active_customers_pipeline).to_list(None)
+        active_customers = active_customers_result[0]["count"] if active_customers_result else 0
+        
+        # Revenue per customer
+        revenue_per_customer = total_revenue / active_customers if active_customers > 0 else 0.0
+        
+        # ========== EXPENSE METRICS ==========
+        
+        # Total expenses from receipts collection (same logic as expenses API and cash flow)
+        expense_match = {
+            "$or": [
+                {"receipt_type": "expense"},
+                {"receipt_type": "refund"},
+                {"ocr_data.extracted_data.total_amount": {"$exists": True}}
+            ]
+        }
+        
+        expense_receipts = await self.db.db["receipts"].find(expense_match).to_list(None)
+        
+        total_expenses = 0.0
+        expense_categories = {}
+        
+        for receipt in expense_receipts:
+            amount = 0.0
+            category = "Other"
+            
+            # Get amount (same priority as expenses service)
+            if receipt.get("ocr_data"):
+                amount = receipt["ocr_data"]["extracted_data"].get("total_amount", 0)
+                category = receipt["ocr_data"]["extracted_data"].get("merchant_name", "Other")
+            elif receipt.get("tax_breakdown"):
+                tax_breakdown = receipt["tax_breakdown"]
+                amount = tax_breakdown.get("subtotal", 0) + tax_breakdown.get("vat_amount", 0)
+                category = receipt.get("category", "Other")
+            elif receipt.get("line_items"):
+                line_items = receipt["line_items"]
+                amount = sum(item.get("total", 0) for item in line_items)
+                category = receipt.get("category", "Other")
+            
+            if amount > 0:
+                total_expenses += amount
+                expense_categories[category] = expense_categories.get(category, 0) + amount
+        
+        # Top expense category
+        top_expense_category = max(expense_categories, key=expense_categories.get) if expense_categories else "N/A"
+        
+        # ========== PROFITABILITY METRICS ==========
+        
+        # Net income
+        net_income = total_revenue - total_expenses
+        
+        # Profit margin
+        profit_margin = (net_income / total_revenue * 100) if total_revenue > 0 else 0.0
+        
+        # ========== TRANSACTION METRICS ==========
+        
+        # Total transactions
+        transaction_count = await self.db.transactions.count_documents({})
+        
+        # Reconciled transactions (assuming 'reconciled' field exists)
+        reconciled_transactions = await self.db.transactions.count_documents({"reconciled": True})
+        
+        # Reconciliation rate
+        reconciliation_rate = (reconciled_transactions / transaction_count * 100) if transaction_count > 0 else 0.0
+        
+        # ========== TREND CALCULATIONS (SIMPLIFIED) ==========
+        
+        # For now, set trends to "stable" since we need historical data for proper trend analysis
+        # In Phase 2, we'll add month-over-month comparisons
+        revenue_trend = "stable"
+        revenue_change_pct = 0.0
+        expense_trend = "stable"
+        
+        # TODO: In Phase 2, calculate trends by comparing current period to previous period
+        # This requires querying data for two periods and calculating percentage change
+        
+        return DashboardMetrics(
+            generated_at=datetime.now().isoformat(),
+            total_revenue=round(total_revenue, 2),
+            revenue_trend=revenue_trend,
+            revenue_change_pct=round(revenue_change_pct, 1),
+            total_invoices=total_invoices,
+            paid_invoices=paid_invoices,
+            pending_invoices=pending_invoices,
+            overdue_invoices=overdue_invoices,
+            average_invoice_value=round(average_invoice_value, 2),
+            total_customers=total_customers,
+            active_customers=active_customers,
+            revenue_per_customer=round(revenue_per_customer, 2),
+            total_outstanding=round(total_outstanding, 2),
+            collection_rate=round(collection_rate, 1),
+            dso=round(dso, 1),
+            total_expenses=round(total_expenses, 2),
+            top_expense_category=top_expense_category,
+            expense_trend=expense_trend,
+            net_income=round(net_income, 2),
+            profit_margin=round(profit_margin, 1),
+            transaction_count=transaction_count,
+            reconciled_transactions=reconciled_transactions,
+            reconciliation_rate=round(reconciliation_rate, 1)
+        )
+    
+    async def get_revenue_trends(self, period: str = "monthly", months: int = 12) -> Dict[str, Any]:
+        """Get revenue trends over time using properly formatted date fields"""
+        from dateutil.relativedelta import relativedelta
+        
+        end_date = datetime.now()
+        start_date = end_date - relativedelta(months=months)
+        
+        # Aggregate revenue by period using issue_date
+        pipeline = [
             {
-                "id": "HIST-001",
-                "customer_phone": "254712345678",
-                "average_amount": 5000,
-                "usual_time_range": "08:00 - 17:00",
-                "frequency": "monthly",
-                "last_payments": [
-                    {"amount": 5000, "timestamp": "2025-05-07T14:25:10"},
-                    {"amount": 4800, "timestamp": "2025-04-05T11:12:30"},
-                    {"amount": 5200, "timestamp": "2025-03-08T10:45:22"}
-                ]
+                "$match": {
+                    "issue_date": {
+                        "$gte": start_date.strftime("%Y-%m-%d"),
+                        "$lte": end_date.strftime("%Y-%m-%d")
+                    },
+                    "status": "paid"
+                }
             },
-            # Customer 2 history
             {
-                "id": "HIST-002",
-                "customer_phone": "254723456789",
-                "average_amount": 3000,  # Current payment is much larger
-                "usual_time_range": "09:00 - 18:00",
-                "frequency": "monthly",
-                "last_payments": [
-                    {"amount": 3000, "timestamp": "2025-05-10T15:30:00"},
-                    {"amount": 3200, "timestamp": "2025-04-12T14:22:30"},
-                    {"amount": 2800, "timestamp": "2025-03-15T16:05:45"}
-                ]
+                "$addFields": {
+                    "year": {"$substr": ["$issue_date", 0, 4]},
+                    "month": {"$substr": ["$issue_date", 5, 2]}
+                }
             },
-            # Customer 3 history
             {
-                "id": "HIST-003",
-                "customer_phone": "254734567890",
-                "average_amount": 2000,
-                "usual_time_range": "08:00 - 18:00",  # Current payment is outside this range
-                "frequency": "monthly",
-                "last_payments": [
-                    {"amount": 2000, "timestamp": "2025-05-20T10:30:00"},
-                    {"amount": 2000, "timestamp": "2025-04-22T14:45:30"},
-                    {"amount": 2000, "timestamp": "2025-03-21T11:15:45"}
-                ]
+                "$group": {
+                    "_id": {
+                        "year": "$year",
+                        "month": "$month"
+                    },
+                    "revenue": {"$sum": "$total_amount"},
+                    "invoice_count": {"$sum": 1}
+                }
+            },
+            {
+                "$sort": {"_id.year": 1, "_id.month": 1}
             }
         ]
+        
+        results = await self.db.invoices.aggregate(pipeline).to_list(None)
+        
+        # Format results
+        trends = []
+        prev_revenue = None
+        
+        for item in results:
+            period_label = f"{item['_id']['year']}-{item['_id']['month']}"
+            revenue = item['revenue']
+            
+            # Calculate change from previous period
+            change_pct = 0.0
+            if prev_revenue and prev_revenue > 0:
+                change_pct = ((revenue - prev_revenue) / prev_revenue) * 100
+            
+            trends.append({
+                "period": period_label,
+                "revenue": round(revenue, 2),
+                "invoice_count": item['invoice_count'],
+                "change_pct": round(change_pct, 2) if prev_revenue else None,
+                "trend": "up" if change_pct > 5 else "down" if change_pct < -5 else "stable"
+            })
+            
+            prev_revenue = revenue
+        
+        # Calculate overall trend
+        overall_trend = "stable"
+        if len(trends) >= 2:
+            first_revenue = trends[0]['revenue']
+            last_revenue = trends[-1]['revenue']
+            if last_revenue > first_revenue * 1.1:
+                overall_trend = "up"
+            elif last_revenue < first_revenue * 0.9:
+                overall_trend = "down"
+        
+        return {
+            "period": period,
+            "months_included": months,
+            "overall_trend": overall_trend,
+            "data": trends
+        }
+    
+    async def get_expense_trends(self, period: str = "monthly", months: int = 12) -> Dict[str, Any]:
+        """Get expense trends over time"""
+        from dateutil.relativedelta import relativedelta
+        
+        end_date = datetime.now()
+        start_date = end_date - relativedelta(months=months)
+        
+        # Aggregate expenses by period
+        pipeline = [
+            {
+                "$match": {
+                    "transaction_date": {
+                        "$gte": start_date.strftime("%Y-%m-%d"),
+                        "$lte": end_date.strftime("%Y-%m-%d")
+                    },
+                    "type": "expense"
+                }
+            },
+            {
+                "$addFields": {
+                    "year": {"$substr": ["$transaction_date", 0, 4]},
+                    "month": {"$substr": ["$transaction_date", 5, 2]}
+                }
+            },
+            {
+                "$group": {
+                    "_id": {
+                        "year": "$year",
+                        "month": "$month"
+                    },
+                    "expenses": {"$sum": "$amount"},
+                    "transaction_count": {"$sum": 1}
+                }
+            },
+            {
+                "$sort": {"_id.year": 1, "_id.month": 1}
+            }
+        ]
+        
+        results = await self.db.transactions.aggregate(pipeline).to_list(None)
+        
+        # Format results
+        trends = []
+        prev_expenses = None
+        
+        for item in results:
+            period_label = f"{item['_id']['year']}-{item['_id']['month']}"
+            expenses = item['expenses']
+            
+            # Calculate change from previous period
+            change_pct = 0.0
+            if prev_expenses and prev_expenses > 0:
+                change_pct = ((expenses - prev_expenses) / prev_expenses) * 100
+            
+            trends.append({
+                "period": period_label,
+                "expenses": round(expenses, 2),
+                "transaction_count": item['transaction_count'],
+                "change_pct": round(change_pct, 2) if prev_expenses else None,
+                "trend": "up" if change_pct > 5 else "down" if change_pct < -5 else "stable"
+            })
+            
+            prev_expenses = expenses
+        
+        # Calculate overall trend
+        overall_trend = "stable"
+        if len(trends) >= 2:
+            first_expenses = trends[0]['expenses']
+            last_expenses = trends[-1]['expenses']
+            if last_expenses > first_expenses * 1.1:
+                overall_trend = "up"
+            elif last_expenses < first_expenses * 0.9:
+                overall_trend = "down"
+        
+        return {
+            "period": period,
+            "months_included": months,
+            "overall_trend": overall_trend,
+            "data": trends
+        }
+    
+    async def get_month_over_month_comparison(self) -> Dict[str, Any]:
+        """Compare current month metrics with previous month"""
+        from dateutil.relativedelta import relativedelta
+        
+        now = datetime.now()
+        
+        # Current month
+        current_start = datetime(now.year, now.month, 1)
+        current_end = now
+        
+        # Previous month
+        prev_start = (current_start - relativedelta(months=1))
+        prev_end = current_start - timedelta(days=1)
+        
+        async def get_period_metrics(start: datetime, end: datetime):
+            start_str = start.strftime("%Y-%m-%d")
+            end_str = end.strftime("%Y-%m-%d")
+            
+            # Revenue - using issue_date for paid invoices
+            revenue_pipeline = [
+                {"$match": {"issue_date": {"$gte": start_str, "$lte": end_str}, "status": "paid"}},
+                {"$group": {"_id": None, "total": {"$sum": "$total_amount"}, "count": {"$sum": 1}}}
+            ]
+            revenue_result = await self.db.invoices.aggregate(revenue_pipeline).to_list(None)
+            revenue = revenue_result[0]['total'] if revenue_result else 0
+            invoice_count = revenue_result[0]['count'] if revenue_result else 0
+            
+            # Expenses
+            expense_pipeline = [
+                {"$match": {"transaction_date": {"$gte": start_str, "$lte": end_str}, "type": "expense"}},
+                {"$group": {"_id": None, "total": {"$sum": "$amount"}, "count": {"$sum": 1}}}
+            ]
+            expense_result = await self.db.transactions.aggregate(expense_pipeline).to_list(None)
+            expenses = expense_result[0]['total'] if expense_result else 0
+            
+            return {
+                "revenue": round(revenue, 2),
+                "expenses": round(expenses, 2),
+                "net_income": round(revenue - expenses, 2),
+                "invoice_count": invoice_count
+            }
+        
+        current = await get_period_metrics(current_start, current_end)
+        previous = await get_period_metrics(prev_start, prev_end)
+        
+        # Calculate changes
+        revenue_change = ((current['revenue'] - previous['revenue']) / previous['revenue'] * 100) if previous['revenue'] > 0 else 0
+        expense_change = ((current['expenses'] - previous['expenses']) / previous['expenses'] * 100) if previous['expenses'] > 0 else 0
+        net_income_change = ((current['net_income'] - previous['net_income']) / abs(previous['net_income']) * 100) if previous['net_income'] != 0 else 0
+        
+        return {
+            "period": "Month-over-Month",
+            "current_month": current_start.strftime("%B %Y"),
+            "previous_month": prev_start.strftime("%B %Y"),
+            "current": current,
+            "previous": previous,
+            "changes": {
+                "revenue_change_pct": round(revenue_change, 2),
+                "expense_change_pct": round(expense_change, 2),
+                "net_income_change_pct": round(net_income_change, 2)
+            }
+        }
+    
+    async def get_year_over_year_comparison(self) -> Dict[str, Any]:
+        """Compare current year metrics with previous year"""
+        now = datetime.now()
+        
+        # Current year
+        current_start = datetime(now.year, 1, 1)
+        current_end = now
+        
+        # Previous year
+        prev_start = datetime(now.year - 1, 1, 1)
+        prev_end = datetime(now.year - 1, now.month, now.day)
+        
+        async def get_period_metrics(start: datetime, end: datetime):
+            start_str = start.strftime("%Y-%m-%d")
+            end_str = end.strftime("%Y-%m-%d")
+            
+            # Revenue - using issue_date for paid invoices
+            revenue_pipeline = [
+                {"$match": {"issue_date": {"$gte": start_str, "$lte": end_str}, "status": "paid"}},
+                {"$group": {"_id": None, "total": {"$sum": "$total_amount"}, "count": {"$sum": 1}}}
+            ]
+            revenue_result = await self.db.invoices.aggregate(revenue_pipeline).to_list(None)
+            revenue = revenue_result[0]['total'] if revenue_result else 0
+            invoice_count = revenue_result[0]['count'] if revenue_result else 0
+            
+            # Expenses
+            expense_pipeline = [
+                {"$match": {"transaction_date": {"$gte": start_str, "$lte": end_str}, "type": "expense"}},
+                {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
+            ]
+            expense_result = await self.db.transactions.aggregate(expense_pipeline).to_list(None)
+            expenses = expense_result[0]['total'] if expense_result else 0
+            
+            return {
+                "revenue": round(revenue, 2),
+                "expenses": round(expenses, 2),
+                "net_income": round(revenue - expenses, 2),
+                "invoice_count": invoice_count
+            }
+        
+        current = await get_period_metrics(current_start, current_end)
+        previous = await get_period_metrics(prev_start, prev_end)
+        
+        # Calculate changes
+        revenue_change = ((current['revenue'] - previous['revenue']) / previous['revenue'] * 100) if previous['revenue'] > 0 else 0
+        expense_change = ((current['expenses'] - previous['expenses']) / previous['expenses'] * 100) if previous['expenses'] > 0 else 0
+        net_income_change = ((current['net_income'] - previous['net_income']) / abs(previous['net_income']) * 100) if previous['net_income'] != 0 else 0
+        
+        return {
+            "period": "Year-over-Year",
+            "current_year": current_start.year,
+            "previous_year": prev_start.year,
+            "current": current,
+            "previous": previous,
+            "changes": {
+                "revenue_growth_pct": round(revenue_change, 2),
+                "expense_growth_pct": round(expense_change, 2),
+                "net_income_growth_pct": round(net_income_change, 2)
+            }
+        }

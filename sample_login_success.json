@@ -1,0 +1,22 @@
+{
+  "success": true,
+  "message": "Login successful",
+  "user": {
+    "id": "68e557beae9698223d54af45",
+    "email": "testuser_20251007_211110@finagent.com",
+    "full_name": "Test Financial Company",
+    "company_name": "Test Financial Company",
+    "phone_number": "+254712345678",
+    "role": "owner",
+    "is_active": true,
+    "is_verified": false,
+    "created_at": "2025-10-07T21:11:10.713000",
+    "last_login": null
+  },
+  "tokens": {
+    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiNjhlNTU3YmVhZTk2OTgyMjNkNTRhZjQ1IiwiZW1haWwiOiJ0ZXN0dXNlcl8yMDI1MTAwN18yMTExMTBAZmluYWdlbnQuY29tIiwicm9sZSI6Im93bmVyIiwidHlwZSI6ImFjY2VzcyIsImV4cCI6MTc1OTg2MjQ3MSwiaWF0IjoxNzU5ODYwNjcxfQ.ynHnlEPGE5E2OLg_yfRd4tgSaUJCZgrV_eaQi1IQlJQ",
+    "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiNjhlNTU3YmVhZTk2OTgyMjNkNTRhZjQ1IiwiZW1haWwiOiJ0ZXN0dXNlcl8yMDI1MTAwN18yMTExMTBAZmluYWdlbnQuY29tIiwicm9sZSI6Im93bmVyIiwidHlwZSI6InJlZnJlc2giLCJleHAiOjE3NjA0NjU0NzEsImlhdCI6MTc1OTg2MDY3MX0.zdQ9JWFa_mgSfDJcNSWwXhu2qQ_WVZUW2PmpVfDglq8",
+    "token_type": "bearer",
+    "expires_in": 1800
+  }
+}

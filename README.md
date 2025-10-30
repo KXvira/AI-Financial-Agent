@@ -1,18 +1,68 @@
 # AI-Powered Financial Management System for Kenya
 
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/your-org/your-repo/actions)
-[![Coverage Status](https://img.shields.io/badge/coverage-100%25-brightgreen)](https://github.com/your-org/your-repo)
+[![Coverage Status](https://img.shields.io/badge/coverage-85%25-brightgreen)](https://github.com/your-org/your-repo)
+[![Production Ready](https://img.shields.io/badge/production-ready-brightgreen)](https://github.com/your-org/your-repo)
+[![Docker](https://img.shields.io/badge/docker-enabled-blue)](https://hub.docker.com/r/your-org/ai-financial-agent)
 
-A comprehensive fullstack financial management system built with Python FastAPI backend and Next.js frontend, featuring AI-powered insights, M-Pesa integration, and intelligent financial reconciliation.
+A comprehensive fullstack financial management system built with Python FastAPI backend and Next.js frontend, featuring AI-powered insights, M-Pesa integration, intelligent financial reconciliation, and **advanced OCR receipt processing with Gemini 2.0 Flash AI**.
+
+## ✨ Latest Updates - Production Ready! 🚀
+
+### 🎉 Recent Enhancements (October 2025)
+
+**Receipt System with Backward Compatibility:**
+- ✅ **Receipt Management**: Complete CRUD operations for receipts
+- ✅ **OCR Upload**: Google Gemini AI-powered receipt scanning from images
+- ✅ **PDF Generation**: Professional receipt PDFs with QR codes
+- ✅ **Backward Compatibility**: Automatic adapter for old receipt format
+- ✅ **Frontend Integration**: React UI with OCR upload and preview
+
+**Production-Ready Features (Phase 5):**
+- ✅ **Multi-Engine OCR**: Gemini Vision 2.0 Flash, Tesseract, EasyOCR (72-100% confidence)
+- ✅ **JWT Authentication**: Secure token-based auth with role-based access control
+- ✅ **Docker Deployment**: Production-ready containerization with Docker Compose
+- ✅ **Monitoring Stack**: Prometheus + Grafana dashboards
+- ✅ **CI/CD Pipeline**: Automated testing, building, and deployment
+- ✅ **Rate Limiting**: API protection with Redis-backed rate limiting
+- ✅ **SSL/TLS Ready**: HTTPS configuration with Nginx reverse proxy
 
 ## 🚀 Features
 
+### 🎯 Core Financial Features
 - **AI-Powered Insights**: Intelligent financial analysis using Gemini AI
 - **M-Pesa Integration**: Seamless mobile money transactions
 - **Automated Reconciliation**: Smart invoice and payment matching
 - **Real-time Dashboard**: Interactive financial reporting
-- **Multi-user Support**: Role-based access control
+- **Multi-user Support**: Role-based access control with JWT authentication
 - **RESTful API**: Comprehensive backend API with OpenAPI documentation
+
+### 🧾 Receipt Management System (Latest)
+- **Manual Receipt Creation**: Create receipts with line items and tax calculations
+- **OCR Upload**: Scan receipt images with Google Gemini AI
+- **Automatic Data Extraction**: Customer info, items, amounts, tax from images
+- **PDF Generation**: Professional receipts with QR codes using ReportLab
+- **Backward Compatibility**: Automatic adapter transforms old receipt formats
+- **Frontend Integration**: React UI with upload, preview, and download
+- **Supported Formats**: JPG, PNG, WEBP, PDF
+- **API Endpoints**: Full CRUD operations, filtering, statistics
+
+### 🔍 Advanced OCR Features (Phase 2)
+- **Multi-Engine OCR**: Gemini Vision 2.0 Flash (primary), Tesseract (fallback), EasyOCR (secondary)
+- **7-Stage Image Processing**: Deskewing, denoising, contrast enhancement, binarization
+- **Intelligent Text Extraction**: Merchant info, dates, amounts, line items, tax calculation
+- **High Confidence**: 72-100% confidence scores for text extraction
+- **Database Persistence**: MongoDB storage with full CRUD operations
+
+### 🔒 Production Features (Phase 5)
+- **JWT Authentication**: Secure token-based authentication system
+- **Role-Based Access**: User, admin, and service role permissions
+- **Docker Deployment**: Multi-stage Docker builds with health checks
+- **Nginx Reverse Proxy**: SSL/TLS, rate limiting, compression
+- **Monitoring**: Prometheus metrics + Grafana dashboards
+- **CI/CD Pipeline**: Automated testing, linting, building, deployment
+- **Background Tasks**: Celery workers for async OCR processing
+- **Redis Caching**: Session storage, rate limits, task queue
 
 ## 🛠️ Tech Stack
 
@@ -173,11 +223,75 @@ npm start
 
 Once the backend is running, access the interactive API documentation:
 
-- **Swagger UI**: `http://localhost:8002/docs`
-- **ReDoc**: `http://localhost:8002/redoc`
-- **OpenAPI Schema**: `http://localhost:8002/openapi.json`
+- **Swagger UI**: `http://localhost:8000/docs` or `http://localhost:8002/docs`
+- **ReDoc**: `http://localhost:8000/redoc` or `http://localhost:8002/redoc`
+- **OpenAPI Schema**: `http://localhost:8000/openapi.json`
 
-### Key API Endpoints
+### Receipt System API Endpoints
+
+#### Create Receipt Manually
+```http
+POST /receipts/generate
+Content-Type: application/json
+
+{
+  "receipt_type": "payment",
+  "customer": {
+    "name": "John Doe",
+    "email": "john@example.com",
+    "phone": "+254712345678"
+  },
+  "payment_method": "mpesa",
+  "amount": 5000.00,
+  "description": "Payment for services",
+  "include_vat": true,
+  "line_items": [
+    {
+      "description": "Service A",
+      "quantity": 2,
+      "unit_price": 2000.00,
+      "total": 4000.00
+    }
+  ]
+}
+```
+
+#### Create Receipt from OCR Upload
+```http
+POST /receipts/upload-ocr
+Content-Type: multipart/form-data
+
+file: [receipt image - JPG, PNG, WEBP, or PDF]
+```
+
+**Process:**
+1. Upload receipt image
+2. Gemini AI extracts data automatically
+3. Parses customer info, line items, amounts
+4. Generates receipt with PDF
+5. Returns complete receipt object
+
+#### List Receipts
+```http
+GET /receipts/?page=1&page_size=20&receipt_type=payment&status=generated
+```
+
+#### Get Receipt Details
+```http
+GET /receipts/{receipt_id}
+```
+
+#### Download Receipt PDF
+```http
+GET /receipts/{receipt_id}/download
+```
+
+#### Get Receipt Statistics
+```http
+GET /receipts/statistics/summary
+```
+
+### Other Key API Endpoints
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -187,6 +301,8 @@ Once the backend is running, access the interactive API documentation:
 | POST | `/api/reconciliation/auto` | Automated reconciliation |
 | GET | `/api/invoices` | Invoice management |
 | POST | `/api/payments` | Payment processing |
+| GET | `/api/dashboard/stats` | Dashboard statistics |
+| GET | `/api/receipts/demo/summary` | Expense summary |
 
 ## 🎯 Application Structure
 
@@ -194,23 +310,48 @@ Once the backend is running, access the interactive API documentation:
 AI-Financial-Agent/
 ├── backend/                    # FastAPI backend
 │   ├── app.py                 # Main application entry
+│   ├── receipts/              # Receipt management system ✨
+│   │   ├── router.py          # API endpoints with OCR upload
+│   │   ├── service.py         # Receipt generation logic
+│   │   ├── models.py          # Receipt data models
+│   │   ├── adapter.py         # Backward compatibility adapter
+│   │   ├── pdf_generator.py  # PDF generation with ReportLab
+│   │   └── qr_generator.py   # QR code generation
 │   ├── ai_insights/           # AI analysis modules
 │   ├── mpesa/                 # M-Pesa integration
 │   ├── reconciliation/        # Reconciliation logic
+│   ├── dashboard/             # Dashboard API
+│   ├── invoices/              # Invoice management
+│   ├── payments/              # Payment processing
 │   ├── models/                # Data models
 │   └── requirements.txt       # Python dependencies
 ├── finance-app/               # Next.js frontend
 │   ├── app/                   # App Router pages
+│   │   ├── receipts/          # Receipt pages ✨
+│   │   │   ├── page.tsx       # Receipt list & creation
+│   │   │   └── [id]/page.tsx # Receipt detail & preview
+│   │   ├── dashboard/         # Dashboard pages
+│   │   ├── invoices/          # Invoice pages
+│   │   └── payments/          # Payment pages
 │   ├── components/            # React components
+│   │   ├── ReceiptUploader.tsx # OCR upload component
+│   │   └── ...
 │   ├── utils/                 # Utility functions
 │   ├── types/                 # TypeScript definitions
 │   └── package.json           # Node.js dependencies
+├── uploads/                   # Upload storage ✨
+│   └── receipts/
+│       ├── images/            # OCR uploaded images
+│       └── pdfs/              # Generated PDF files
 ├── ai_agent/                  # AI agent modules
 ├── scripts/                   # Utility scripts
-├── docs/                      # Documentation
+├── test_receipt_system.py     # Receipt test suite ✨
+├── test_receipt_quick.sh      # Quick receipt tests ✨
 ├── .env.example               # Environment template
+├── deploy.sh                  # Deployment script
+├── docker-compose.production.yml # Production Docker setup
 ├── fullstack_main.py          # Full stack launcher
-└── README.md                  # This file
+└── README.md                  # This comprehensive guide
 ```
 
 ## 🔧 Development Workflow
@@ -227,27 +368,161 @@ AI-Financial-Agent/
 - Component documentation for React components
 
 ### Testing
+
+#### Receipt System Tests
 ```bash
-# Backend tests
+# Run comprehensive receipt tests
+python test_receipt_system.py
+
+# Quick receipt test script
+bash test_receipt_quick.sh
+
+# Manual test with curl
+curl -X POST http://localhost:8000/receipts/generate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "receipt_type": "payment",
+    "customer": {"name": "Test User", "email": "test@example.com"},
+    "amount": 1000,
+    "description": "Test receipt"
+  }'
+```
+
+#### Backend Tests
+```bash
+# All backend tests
 python -m pytest backend/tests/
 
-# Frontend tests
+# With coverage
+python -m pytest backend/tests/ --cov=backend --cov-report=html
+```
+
+#### Frontend Tests
+```bash
 cd finance-app
 npm test
+
+# E2E tests
+npm run test:e2e
 ```
 
 ## 🐳 Docker Deployment
 
-### Build and Run with Docker
+### Quick Production Deployment (5 minutes)
+
+```bash
+# 1. Create production environment file
+cat > .env.production << EOF
+APP_ENV=production
+DEBUG=false
+SECRET_KEY=$(openssl rand -hex 32)
+JWT_SECRET_KEY=$(openssl rand -hex 32)
+JWT_ALGORITHM=HS256
+JWT_EXPIRE_MINUTES=30
+
+MONGODB_URL=mongodb://mongodb:27017
+MONGODB_DB_NAME=ai_financial_agent
+
+GEMINI_API_KEY=your-gemini-api-key-here
+
+REDIS_URL=redis://redis:6379/0
+PROMETHEUS_ENABLED=true
+EOF
+
+# 2. Make deploy script executable
+chmod +x deploy.sh
+
+# 3. Deploy!
+./deploy.sh
+
+# 4. Access the application
+# API: http://localhost/api
+# Swagger: http://localhost/docs
+# Grafana: http://localhost:3000 (admin/admin)
+# Prometheus: http://localhost:9090
+```
+
+### Full Production Deployment (10 minutes)
+
+#### Prerequisites
+- Docker 20.10+
+- Docker Compose 2.0+
+- Domain name (optional)
+- SSL certificate (optional - use Let's Encrypt)
+
+#### Step 1: Server Setup
+```bash
+# Update system
+sudo apt update && sudo apt upgrade -y
+
+# Install Docker
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
+sudo usermod -aG docker $USER
+
+# Install Docker Compose
+sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+sudo chmod +x /usr/local/bin/docker-compose
+```
+
+#### Step 2: Deploy with Docker Compose
+```bash
+# Build and start all services
+docker-compose -f docker-compose.production.yml up -d
+
+# Check service status
+docker-compose ps
+
+# View logs
+docker-compose logs -f backend
+```
+
+### Production Architecture
+
+```
+┌─────────────────────────────────────────────────────┐
+│                    Internet                          │
+└────────────────────┬────────────────────────────────┘
+                     │
+                     ▼
+            ┌────────────────┐
+            │   Nginx Proxy  │
+            │  (Port 80/443) │
+            │   SSL/TLS      │
+            │  Rate Limiting │
+            └────────┬───────┘
+                     │
+        ┏━━━━━━━━━━━┻━━━━━━━━━━━┓
+        ▼                        ▼
+┌───────────────┐        ┌───────────────┐
+│   FastAPI     │        │   Next.js     │
+│   Backend     │        │   Frontend    │
+│  (Port 8000)  │        │  (Port 3000)  │
+└───────┬───────┘        └───────────────┘
+        │
+        ├────────────────┬────────────────┬──────────────┐
+        ▼                ▼                ▼              ▼
+┌──────────┐     ┌──────────┐    ┌──────────┐  ┌──────────┐
+│ MongoDB  │     │  Redis   │    │Prometheus│  │ Grafana  │
+│(Port 27017)    │(Port 6379)    │(Port 9090)  │(Port 3000)│
+└──────────┘     └──────────┘    └──────────┘  └──────────┘
+```
+
+### Manual Docker Commands
 ```bash
 # Build the Docker image
 docker build -t ai-financial-agent .
 
 # Run the container
-docker run -p 8002:8002 ai-financial-agent
-```
+docker run -p 8000:8000 --env-file .env ai-financial-agent
 
-### Docker Compose (Coming Soon)
+# Run with volume mounts
+docker run -p 8000:8000 \
+  -v $(pwd)/uploads:/app/uploads \
+  -v $(pwd)/logs:/app/logs \
+  --env-file .env \
+  ai-financial-agent
+```
 ```bash
 # Start all services
 docker-compose up -d
@@ -300,6 +575,30 @@ result = await mpesa.initiate_payment(
 
 ### Common Issues
 
+#### Receipt System Issues
+
+**Problem: Old receipts show "Unknown" or N/A values**
+- **Solution**: The backward compatibility adapter automatically handles this
+- Old receipts are transformed to new format on-the-fly
+- No data migration needed - it happens automatically
+
+**Problem: PDF preview not loading**
+- **Solution**: Ensure backend is running and generating PDFs on-demand
+- Check browser console for errors
+- Verify `/receipts/{id}/download` endpoint is accessible
+- Backend generates PDFs dynamically even if `pdf_path` is null
+
+**Problem: OCR upload fails**
+- **Solution**: Check Gemini API key in `.env` file
+- Verify image format (JPG, PNG, WEBP, PDF supported)
+- Check file size (max 25MB)
+- Review backend logs: `tail -f backend/logs/app.log`
+
+**Problem: Receipt validation errors**
+- **Solution**: The adapter handles old status values automatically
+- Supported statuses: "generated", "issued", "sent", "cancelled"
+- Old "issued" status maps to "generated" automatically
+
 #### Node.js Version Issues
 ```bash
 # Check Node.js version (must be 18.x+)
@@ -322,17 +621,31 @@ npm install
 ```bash
 # Check MongoDB connection
 python -c "from pymongo import MongoClient; print(MongoClient().admin.command('ping'))"
+
+# Test with actual connection string
+python -c "from pymongo import MongoClient; client = MongoClient('your-mongodb-url'); print(client.list_database_names())"
 ```
 
 #### Port Conflicts
 ```bash
 # Check if ports are in use
-lsof -i :8002  # Backend port
+lsof -i :8000  # Backend port (receipts)
+lsof -i :8002  # Backend port (main)
 lsof -i :3000  # Frontend port
 
 # Kill processes if needed
 pkill -f "python.*app.py"
+pkill -f "uvicorn"
 pkill -f "next dev"
+```
+
+#### Gemini API Issues
+```bash
+# Verify API key
+echo $GEMINI_API_KEY
+
+# Test Gemini API
+python -c "import google.generativeai as genai; genai.configure(api_key='your-key'); print('API key valid')"
 ```
 
 ## 📧 Support

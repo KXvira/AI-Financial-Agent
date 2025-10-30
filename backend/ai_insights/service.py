@@ -37,13 +37,13 @@ class AIInsightsConfig:
     """Configuration for AI Insights Service"""
     
     def __init__(self):
-        # Database configuration
-        self.mongo_uri = os.environ.get("MONGO_URI", "mongodb://localhost:27017")
-        self.database_name = os.environ.get("DATABASE_NAME", "kenya_fintech_suite")
+        # Database configuration - Try both environment variable names
+        self.mongo_uri = os.environ.get("MONGODB_URL") or os.environ.get("MONGO_URI", "mongodb://localhost:27017")
+        self.database_name = os.environ.get("MONGO_DB", "financial_agent")
         
         # Gemini API configuration
         self.gemini_api_key = os.environ.get("GEMINI_API_KEY", "your-api-key")
-        self.gemini_model = os.environ.get("GEMINI_MODEL", "gemini-1.5-pro")
+        self.gemini_model = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash-exp")
         
         # Configure Gemini SDK
         genai.configure(api_key=self.gemini_api_key)
@@ -104,74 +104,116 @@ class FinancialRAGService:
     def retrieve_financial_context(self, query: str) -> str:
         """
         Retrieve relevant financial data from MongoDB based on the user's query.
-        This function accesses the 'analytics_cache' collection and other financial data.
+        This function accesses various collections for financial data.
         """
         try:
             context_parts = []
             
-            # Access analytics_cache collection for key metrics
-            analytics_cache = self.db.analytics_cache
+            logger.info(f"Retrieving financial context from database: {self.config.database_name}")
+            logger.info(f"MongoDB URI: {self.config.mongo_uri[:50]}...")  # Log partial URI
             
-            # Get recent revenue data (last 2 months)
-            recent_months = []
-            for i in range(2):
-                month_start = datetime.now().replace(day=1) - timedelta(days=i*30)
-                month_key = month_start.strftime("%Y-%m")
-                recent_months.append(month_key)
+            # Try to get all collection names first
+            try:
+                collections = self.db.list_collection_names()
+                logger.info(f"Available collections: {collections}")
+            except Exception as e:
+                logger.error(f"Could not list collections: {str(e)}")
             
-            # Fetch revenue data
-            revenue_docs = list(analytics_cache.find({
-                "metric_type": "revenue_monthly",
-                "period": {"$in": recent_months}
-            }))
-            
-            if revenue_docs:
-                context_parts.append("Recent Revenue Data:")
-                for doc in revenue_docs:
-                    period = doc.get("period", "Unknown")
-                    amount = doc.get("value", 0)
-                    context_parts.append(f"- Revenue for {period}: {amount:,.2f} KES")
-            
-            # Get expense categories
-            expense_docs = list(analytics_cache.find({
-                "metric_type": "expense_categories",
-                "period": datetime.now().strftime("%Y-%m")
-            }))
-            
-            if expense_docs:
-                context_parts.append("\nTop Expense Categories:")
-                for doc in expense_docs:
-                    category = doc.get("category", "Unknown")
-                    amount = doc.get("value", 0)
-                    context_parts.append(f"- {category}: {amount:,.2f} KES")
-            
-            # Get transaction summary if no analytics cache
-            if not context_parts:
-                # Fallback to direct transaction data
-                recent_transactions = list(self.db.transactions.find({
-                    "timestamp": {"$gte": datetime.now() - timedelta(days=30)}
-                }).limit(50))
-                
-                if recent_transactions:
-                    total_amount = sum(t.get("amount", 0) for t in recent_transactions)
-                    context_parts.append(f"Recent Transactions (Last 30 days):")
-                    context_parts.append(f"- Total transactions: {len(recent_transactions)}")
-                    context_parts.append(f"- Total amount: {total_amount:,.2f} KES")
+            # Get transaction summary - try multiple date fields
+            logger.info("Looking for recent transactions...")
+            try:
+                # Try different date field names
+                for date_field in ["request_timestamp", "timestamp", "created_at", "date"]:
+                    recent_transactions = list(self.db.transactions.find().limit(100))
+                    if recent_transactions:
+                        logger.info(f"Found {len(recent_transactions)} transactions")
+                        break
+                else:
+                    # If no date filtering worked, just get any transactions
+                    recent_transactions = list(self.db.transactions.find().limit(100))
                     
-                    # Group by payment method
-                    mpesa_count = len([t for t in recent_transactions if t.get("payment_method") == "mpesa"])
-                    if mpesa_count > 0:
-                        context_parts.append(f"- M-Pesa transactions: {mpesa_count}")
+            except Exception as e:
+                logger.error(f"Error finding transactions: {str(e)}")
+                recent_transactions = []
+            
+            logger.info(f"Retrieved {len(recent_transactions)} transactions")
+            logger.info(f"Retrieved {len(recent_transactions)} transactions")
+            
+            if recent_transactions:
+                total_amount = sum(t.get("amount", 0) for t in recent_transactions)
+                completed_count = len([t for t in recent_transactions if t.get("status") == "completed"])
+                context_parts.append(f"\n## Recent Transactions:")
+                context_parts.append(f"- Total transactions: {len(recent_transactions)}")
+                context_parts.append(f"- Total amount: KES {total_amount:,.2f}")
+                context_parts.append(f"- Completed transactions: {completed_count}")
+                
+                # Group by payment method/gateway
+                gateways = {}
+                for t in recent_transactions:
+                    gateway = t.get("gateway", t.get("payment_method", "Unknown"))
+                    gateways[gateway] = gateways.get(gateway, 0) + 1
+                
+                if gateways:
+                    context_parts.append(f"\n### Payment Methods:")
+                    for gateway, count in gateways.items():
+                        context_parts.append(f"- {gateway}: {count} transactions")
+            
+            # Get invoice data
+            logger.info("Looking for invoices...")
+            try:
+                recent_invoices = list(self.db.invoices.find().limit(100))
+                logger.info(f"Found {len(recent_invoices)} invoices")
+            except Exception as e:
+                logger.error(f"Error finding invoices: {str(e)}")
+                recent_invoices = []
+            
+            if recent_invoices:
+                invoice_total = sum(inv.get("total_amount", inv.get("amount", 0)) for inv in recent_invoices)
+                paid_invoices = len([inv for inv in recent_invoices if inv.get("status") == "paid"])
+                pending_invoices = len([inv for inv in recent_invoices if inv.get("status") in ["sent", "overdue", "pending"]])
+                
+                context_parts.append(f"\n## Recent Invoices:")
+                context_parts.append(f"- Total invoices: {len(recent_invoices)}")
+                context_parts.append(f"- Total invoice value: KES {invoice_total:,.2f}")
+                context_parts.append(f"- Paid invoices: {paid_invoices}")
+                context_parts.append(f"- Pending invoices: {pending_invoices}")
+            
+            # Get customer data
+            logger.info("Looking for customers...")
+            try:
+                customer_count = self.db.customers.count_documents({})
+                logger.info(f"Found {customer_count} customers")
+                if customer_count > 0:
+                    context_parts.append(f"\n## Customer Base:")
+                    context_parts.append(f"- Total customers: {customer_count}")
+            except Exception as e:
+                logger.error(f"Error finding customers: {str(e)}")
+            
+            # Get receipt/expense data
+            logger.info("Looking for receipts...")
+            try:
+                recent_receipts = list(self.db.receipts.find().limit(100))
+                logger.info(f"Found {len(recent_receipts)} receipts")
+                if recent_receipts:
+                    receipt_total = sum(r.get("amount", r.get("tax_breakdown", {}).get("total", 0)) for r in recent_receipts)
+                    context_parts.append(f"\n## Recent Receipts/Expenses:")
+                    context_parts.append(f"- Total receipts: {len(recent_receipts)}")
+                    context_parts.append(f"- Total receipt value: KES {receipt_total:,.2f}")
+            except Exception as e:
+                logger.error(f"Error finding receipts: {str(e)}")
             
             # Join all context parts
             if context_parts:
-                return "Financial Context:\n" + "\n".join(context_parts)
+                full_context = "# FINANCIAL CONTEXT\n\n" + "\n".join(context_parts)
+                logger.info(f"Generated context with {len(context_parts)} sections")
+                return full_context
             else:
-                return ""
+                logger.warning("No financial data found in database!")
+                return "No financial data available in the system."
                 
         except Exception as e:
-            logger.error(f"Error retrieving financial context: {str(e)}")
-            return ""
+            logger.error(f"Error retrieving financial context: {str(e)}", exc_info=True)
+            return f"Error retrieving financial data: {str(e)}"
     
     def retrieve_transaction_data(self, query: FinancialQuery) -> Dict[str, Any]:
         """
@@ -245,13 +287,18 @@ class FinancialRAGService:
 You are a helpful and professional financial assistant for Small and Medium Businesses in Kenya.
 Your role is to provide accurate, actionable financial insights based ONLY on the provided context data.
 
-IMPORTANT INSTRUCTIONS:
-- Base your answer ONLY on the provided financial context below
-- If the context doesn't contain enough information, clearly state this limitation
-- Focus on actionable insights and recommendations for Kenyan SMBs
-- Use Kenyan Shilling (KES) currency format
-- Be professional, clear, and concise
-- If you're uncertain about something, say so rather than guessing
+IMPORTANT FORMATTING INSTRUCTIONS:
+1. Use proper Markdown formatting with headers (##, ###) for sections
+2. Use numbered lists (1., 2., 3.) instead of asterisks (*) for better readability
+3. Use line breaks between sections for visual clarity
+4. Bold important terms using **text**
+5. Present data in tables when appropriate using Markdown table syntax
+6. Base your answer ONLY on the provided financial context below
+7. If the context doesn't contain enough information, clearly state this limitation
+8. Focus on actionable insights and recommendations for Kenyan SMBs
+9. Use Kenyan Shilling (KES) currency format
+10. Be professional, clear, and concise
+11. If you're uncertain about something, say so rather than guessing
 
 FINANCIAL CONTEXT:
 {context}
@@ -260,6 +307,13 @@ USER QUERY:
 {query}
 
 Please provide a comprehensive answer based on the available financial data above.
+Format your response professionally with:
+- Clear section headers (##)
+- Numbered lists for requirements or steps
+- Bold text for emphasis on key points
+- Tables for data presentation where appropriate
+- Line breaks between sections
+
 Include specific numbers and insights where possible.
 If the context is insufficient, explain what additional data would be needed.
 """
@@ -289,7 +343,14 @@ If the context is insufficient, explain what additional data would be needed.
             You are a financial advisor AI assistant for a Kenyan fintech company. 
             You have access to transaction data, invoice data, and customer information.
             
-            Your role is to:
+            FORMATTING REQUIREMENTS:
+            1. Use Markdown headers (## for main sections, ### for subsections)
+            2. Use numbered lists (1., 2., 3.) instead of bullet points with asterisks
+            3. Bold important terms using **text**
+            4. Use tables for data presentation where appropriate
+            5. Add line breaks between sections for readability
+            
+            YOUR ROLE:
             1. Analyze financial data and provide actionable insights
             2. Answer questions about spending patterns, revenue trends, and financial health
             3. Suggest improvements for financial management
@@ -297,7 +358,7 @@ If the context is insufficient, explain what additional data would be needed.
             5. Focus on Kenyan market context (KES currency, M-Pesa payments, etc.)
             
             Always be helpful, accurate, and professional. If you're uncertain about something,
-            say so rather than guessing.
+            say so rather than guessing. Format your response in a clean, professional manner.
             """
             
             # Format the retrieved data for the prompt
@@ -313,6 +374,14 @@ If the context is insufficient, explain what additional data would be needed.
             {data_summary}
             
             Please provide a comprehensive answer to the user's question based on the available data.
+            
+            Format your response with:
+            - Section headers using ##
+            - Numbered lists (1., 2., 3.) for items
+            - Bold text for key terms
+            - Tables for data where appropriate
+            - Clear paragraph breaks
+            
             Include specific numbers and insights where possible.
             """
             

@@ -25,9 +25,12 @@ MANIFEST
 venv/
 env/
 ENV/
+venv-fresh/
+venv-ocr/
 .env
 .venv
-
+venv-new/
+sprint7_env/
 # IDE files
 .idea/
 .vscode/
@@ -46,7 +49,7 @@ ENV/
 *.db
 dump.rdb
 mongodb_data/
-
+secu
 # API Keys and credentials
 .env
 .env.local
@@ -103,3 +106,7 @@ docker-compose.local.yml
 # Temporary files
 tmp/
 temp/
+
+# Markdown files (except README.md)
+*.md
+!README.md

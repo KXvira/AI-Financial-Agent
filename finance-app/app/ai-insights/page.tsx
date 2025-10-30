@@ -13,24 +13,28 @@ export default function AIInsightsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'error' | 'checking'>('checking');
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // Check health
-        const health = await aiClient.checkHealth();
-        setConnectionStatus('connected');
-        
-        // Fetch data summary
-        const summary = await aiClient.getDataSummary();
-        setDataSummary(summary);
-      } catch (error) {
-        console.error('Error fetching AI data:', error);
-        setConnectionStatus('error');
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  const fetchData = async () => {
+    setIsLoading(true);
+    setConnectionStatus('checking');
+    try {
+      console.log('Checking AI health...'); // Debug log
+      // Check health
+      const health = await aiClient.checkHealth();
+      console.log('AI health response:', health); // Debug log
+      setConnectionStatus('connected');
+      
+      // Fetch data summary
+      const summary = await aiClient.getDataSummary();
+      setDataSummary(summary);
+    } catch (error) {
+      console.error('Error fetching AI data:', error);
+      setConnectionStatus('error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchData();
   }, []);
 
@@ -93,7 +97,7 @@ export default function AIInsightsPage() {
                 Unable to connect to the AI backend service. Please ensure the service is running on port 8000.
               </p>
               <button 
-                onClick={() => window.location.reload()}
+                onClick={fetchData}
                 className="mt-3 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
               >
                 Retry Connection
@@ -105,7 +109,7 @@ export default function AIInsightsPage() {
 
       {/* Data Summary Cards */}
       {dataSummary && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <div className="bg-white p-6 rounded-lg shadow-md border">
             <h3 className="text-sm font-medium text-gray-600 mb-2">Total Transactions</h3>
             <p className="text-2xl font-bold text-gray-900">{dataSummary.total_transactions}</p>
@@ -117,14 +121,9 @@ export default function AIInsightsPage() {
           </div>
           
           <div className="bg-white p-6 rounded-lg shadow-md border">
-            <h3 className="text-sm font-medium text-gray-600 mb-2">M-Pesa Transactions</h3>
-            <p className="text-2xl font-bold text-gray-900">{dataSummary.total_mpesa_transactions}</p>
-          </div>
-          
-          <div className="bg-white p-6 rounded-lg shadow-md border">
             <h3 className="text-sm font-medium text-gray-600 mb-2">Total Revenue</h3>
             <p className="text-2xl font-bold text-gray-900">
-              KES {dataSummary.summary_stats.total_revenue.toLocaleString()}
+              {dataSummary.total_revenue}
             </p>
           </div>
         </div>
@@ -164,23 +163,23 @@ export default function AIInsightsPage() {
               <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <h4 className="font-medium text-gray-700 mb-2">Date Range</h4>
+                    <h4 className="font-medium text-gray-700 mb-2">Total Invoices</h4>
                     <p className="text-sm text-gray-600">
-                      {dataSummary.date_range.start} to {dataSummary.date_range.end}
+                      {dataSummary.total_invoices}
                     </p>
                   </div>
                   <div>
-                    <h4 className="font-medium text-gray-700 mb-2">Average Transaction</h4>
+                    <h4 className="font-medium text-gray-700 mb-2">Pending Invoices</h4>
                     <p className="text-sm text-gray-600">
-                      KES {dataSummary.summary_stats.avg_transaction_amount.toLocaleString()}
+                      {dataSummary.pending_invoices}
                     </p>
                   </div>
                 </div>
                 
                 <div>
-                  <h4 className="font-medium text-gray-700 mb-2">Most Common Transaction Type</h4>
+                  <h4 className="font-medium text-gray-700 mb-2">Pending Amount</h4>
                   <p className="text-sm text-gray-600">
-                    {dataSummary.summary_stats.most_common_transaction_type}
+                    {dataSummary.pending_amount}
                   </p>
                 </div>
                 

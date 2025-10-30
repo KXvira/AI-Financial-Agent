@@ -1,61 +1,82 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 
-const invoices = [
-  {
-    number: "INV-2024–001",
-    client: "Tech Solutions Ltd",
-    date: "2024-07-20",
-    dueDate: "2024-08-19",
-    amount: "KES 15,000",
-    status: "Paid",
-  },
-  {
-    number: "INV-2024–002",
-    client: "Creative Designs Agency",
-    date: "2024-07-15",
-    dueDate: "2024-08-14",
-    amount: "KES 8,500",
-    status: "Unpaid",
-  },
-  {
-    number: "INV-2024–003",
-    client: "Global Marketing Inc",
-    date: "2024-07-10",
-    dueDate: "2024-08-09",
-    amount: "KES 22,000",
-    status: "Paid",
-  },
-  {
-    number: "INV-2024–004",
-    client: "Software Innovations Ltd",
-    date: "2024-07-05",
-    dueDate: "2024-08-04",
-    amount: "KES 12,000",
-    status: "Unpaid",
-  },
-  {
-    number: "INV-2024–005",
-    client: "Digital Media Group",
-    date: "2024-06-30",
-    dueDate: "2024-07-29",
-    amount: "KES 18,000",
-    status: "Paid",
-  }
-];
+interface Invoice {
+  id: string;
+  number: string;
+  client: string;
+  date: string;
+  dueDate: string;
+  amount: string;
+  status: string;
+}
 
 export default function InvoicesPage() {
   const [filter, setFilter] = useState("All");
   const [search, setSearch] = useState("");
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchInvoices();
+  }, []);
+
+  const fetchInvoices = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('http://localhost:8000/api/invoices?limit=100');
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch invoices');
+      }
+      
+      const data = await response.json();
+      setInvoices(data.invoices || []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredInvoices = invoices.filter((inv) => {
-    const matchesSearch = inv.number.toLowerCase().includes(search.toLowerCase());
+    const matchesSearch = inv.number.toLowerCase().includes(search.toLowerCase()) ||
+                          inv.client.toLowerCase().includes(search.toLowerCase());
     const matchesStatus =
-      filter === "All" || inv.status.toLowerCase() === filter.toLowerCase();
+      filter === "All" || 
+      inv.status.toLowerCase() === filter.toLowerCase() ||
+      (filter === "Unpaid" && inv.status.toLowerCase() === "pending");
     return matchesSearch && matchesStatus;
   });
+
+  if (loading) {
+    return (
+      <div className="p-8">
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-8">
+        <div className="bg-red-50 border border-red-200 rounded-md p-4">
+          <p className="text-red-800">Error loading invoices: {error}</p>
+          <button 
+            onClick={fetchInvoices}
+            className="mt-2 text-red-600 hover:text-red-800 underline"
+          >
+            Try again
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-8">

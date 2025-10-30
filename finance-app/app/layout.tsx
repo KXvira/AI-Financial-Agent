@@ -1,18 +1,26 @@
 // app/layout.tsx
 //Root page
+import type { Metadata } from 'next';
 import './globals.css';
+import { AuthProvider } from '../contexts/AuthContext';
 import Navbar from '../components/Navbar';
+import ClientOnly from '../components/ClientOnly';
 
-export const metadata = {
-  title: 'FinTrack Dashboard',
-};
+export const metadata: Metadata = {
+  title: 'Fin Guard Dashboard - AI-Powered Financial Management',
+  description: 'Comprehensive financial management with AI insights, M-Pesa integration, and advanced analytics',
+}
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className="bg-gray-50 text-gray-900">
-        <Navbar />
-        <main className="p-8 max-w-7xl mx-auto">{children}</main>
+      <body className="bg-gray-50 text-gray-900" suppressHydrationWarning={true}>
+        <ClientOnly fallback={<div className="h-16 bg-white shadow-sm border-b"></div>}>
+          <AuthProvider>
+            <Navbar />
+            <main className="p-8 max-w-7xl mx-auto">{children}</main>
+          </AuthProvider>
+        </ClientOnly>
       </body>
     </html>
   );

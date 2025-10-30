@@ -26,6 +26,15 @@ except ImportError:
     reconciliation_available = False
     print("Reconciliation module not available. Reconciliation features disabled.")
 
+# Import receipt integration
+try:
+    from receipts.service import ReceiptService
+    from receipts.integrations.mpesa_integration import MpesaReceiptIntegration
+    receipt_integration_available = True
+except ImportError:
+    receipt_integration_available = False
+    print("Receipt integration not available. Auto-receipt generation disabled.")
+
 logger = logging.getLogger("financial-agent.mpesa")
 
 class MpesaConfig:
@@ -76,6 +85,17 @@ class MpesaService:
             self.reconciliation_service = ReconciliationService()
         else:
             self.reconciliation_service = None
+        
+        # Initialize receipt integration if available
+        if receipt_integration_available and self.db is not None:
+            try:
+                receipt_service = ReceiptService(db=self.db)
+                self.receipt_integration = MpesaReceiptIntegration(receipt_service)
+            except Exception as e:
+                logger.warning(f"Failed to initialize receipt integration: {str(e)}")
+                self.receipt_integration = None
+        else:
+            self.receipt_integration = None
     
     async def get_access_token(self) -> str:
         """Get OAuth access token from Safaricom"""
@@ -319,6 +339,18 @@ class MpesaService:
                             
                             # Queue for reconciliation
                             await self.reconciliation_service.queue_for_reconciliation(reconciliation_data)
+                        
+                        # Generate receipt automatically if integration available
+                        if self.receipt_integration is not None:
+                            try:
+                                receipt_result = await self.receipt_integration.process_successful_payment(
+                                    payment_data=payment_details,
+                                    transaction_data=transaction
+                                )
+                                logger.info(f"Auto-generated receipt: {receipt_result.get('receipt_number')}")
+                            except Exception as receipt_error:
+                                logger.error(f"Failed to auto-generate receipt: {str(receipt_error)}")
+                                # Don't fail the entire callback if receipt generation fails
                 
                 return {
                     "status": "success",

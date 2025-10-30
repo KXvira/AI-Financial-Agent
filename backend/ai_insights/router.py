@@ -247,3 +247,63 @@ async def get_example_queries() -> Dict[str, Any]:
         "categories": examples,
         "usage_tip": "You can also specify date ranges and transaction types in your queries"
     }
+
+# ------------------------------------------------------------------------------
+# Data Summary Endpoint
+# ------------------------------------------------------------------------------
+@router.get("/data-summary")
+async def get_data_summary(
+    service: FinancialRAGService = Depends(get_ai_insights_service)
+) -> Dict[str, Any]:
+    """
+    Get a summary of financial data from the database.
+    
+    Returns:
+        Dict containing summary statistics for transactions, invoices, and revenue
+    """
+    try:
+        # Get database instance
+        import sys
+        import os
+        sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        from database.mongodb import Database
+        db = Database.get_instance()
+        
+        # Fetch data from database
+        total_transactions = await db.transactions.count_documents({})
+        total_invoices = await db.invoices.count_documents({})
+        pending_invoices = await db.invoices.count_documents({"status": "sent"})
+        
+        # Count M-Pesa payments specifically (from payments collection)
+        mpesa_transactions = await db.payments.count_documents({
+            "payment_method": {"$regex": "mpesa", "$options": "i"}
+        })
+        
+        # Calculate total revenue from completed transactions
+        revenue_pipeline = [
+            {"$match": {"status": "completed"}},
+            {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
+        ]
+        revenue_result = await db.transactions.aggregate(revenue_pipeline).to_list(1)
+        total_revenue = revenue_result[0]["total"] if revenue_result else 0
+        
+        # Calculate pending amount from pending invoices
+        pending_pipeline = [
+            {"$match": {"status": {"$in": ["sent", "overdue"]}}},
+            {"$group": {"_id": None, "total": {"$sum": "$total_amount"}}}
+        ]
+        pending_result = await db.invoices.aggregate(pending_pipeline).to_list(1)
+        pending_amount = pending_result[0]["total"] if pending_result else 0
+        
+        return {
+            "total_transactions": total_transactions,
+            "total_invoices": total_invoices,
+            "mpesa_transactions": mpesa_transactions,
+            "pending_invoices": pending_invoices,
+            "total_revenue": f"KES {total_revenue:,.2f}",
+            "pending_amount": f"KES {pending_amount:,.2f}"
+        }
+        
+    except Exception as e:
+        logger.error(f"Error fetching data summary: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch data summary: {str(e)}")

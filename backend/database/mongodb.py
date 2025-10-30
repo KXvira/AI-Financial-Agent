@@ -26,6 +26,10 @@ class DatabaseConfig:
         self.customers_collection = "customers"
         self.reconciliation_collection = "reconciliation_logs"
         self.analytics_collection = "analytics"
+        
+        # Phase 4: Automation collections
+        self.scheduled_reports_collection = "scheduled_reports"
+        self.report_templates_collection = "report_templates"
 
 class Database:
     """Database operations using Motor for async MongoDB access"""
@@ -49,6 +53,14 @@ class Database:
         self.customers = self.db[self.config.customers_collection]
         self.reconciliation = self.db[self.config.reconciliation_collection]
         self.analytics = self.db[self.config.analytics_collection]
+        
+        # Normalized collections
+        self.payments = self.db["payments"]  # Normalized payments collection
+        self.invoice_items = self.db["invoice_items"]  # Normalized invoice items
+        
+        # Phase 4: Automation collections
+        self.scheduled_reports = self.db[self.config.scheduled_reports_collection]
+        self.report_templates = self.db[self.config.report_templates_collection]
         
         logger.info(f"Connected to MongoDB: {self.config.mongo_uri}")
     
@@ -304,9 +316,111 @@ class Database:
         
         return str(result.inserted_id)
     
+    async def create_document(self, collection_name: str, document: Dict[str, Any]) -> str:
+        """
+        Generic method to create a document in any collection
+        
+        Args:
+            collection_name: Name of the collection
+            document: Document data
+            
+        Returns:
+            Document ID
+        """
+        # Generate ID if not present
+        if "_id" not in document and "id" not in document:
+            document["_id"] = str(uuid.uuid4())
+        elif "id" in document and "_id" not in document:
+            document["_id"] = document.pop("id")
+            
+        # Get collection
+        collection = self.db[collection_name]
+        
+        # Insert document
+        result = await collection.insert_one(document)
+        logger.info(f"Created document in {collection_name}: {result.inserted_id}")
+        
+        return str(result.inserted_id)
+    
+    async def find_one(self, collection_name: str, query: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """
+        Generic method to find one document in any collection
+        
+        Args:
+            collection_name: Name of the collection
+            query: Query filter
+            
+        Returns:
+            Document data or None
+        """
+        collection = self.db[collection_name]
+        result = await collection.find_one(query)
+        
+        if result:
+            # Convert ObjectId to string for id field
+            if "_id" in result:
+                result["id"] = str(result.pop("_id"))
+            
+            return result
+        else:
+            return None
+    
+    def find(self, collection_name: str, query: Dict[str, Any]):
+        """
+        Generic method to find multiple documents in any collection
+        
+        Args:
+            collection_name: Name of the collection
+            query: Query filter
+            
+        Returns:
+            Async cursor
+        """
+        collection = self.db[collection_name]
+        return collection.find(query)
+    
+    async def update_document(self, collection_name: str, document_id: str, update_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """
+        Generic method to update a document in any collection
+        
+        Args:
+            collection_name: Name of the collection
+            document_id: Document ID
+            update_data: Update data
+            
+        Returns:
+            Updated document
+        """
+        collection = self.db[collection_name]
+        
+        result = await collection.find_one_and_update(
+            {"_id": document_id},
+            {"$set": update_data},
+            return_document=ReturnDocument.AFTER
+        )
+        
+        if result:
+            # Convert ObjectId to string for id field
+            if "_id" in result:
+                result["id"] = str(result.pop("_id"))
+            
+            logger.info(f"Updated document in {collection_name}: {document_id}")
+            return result
+        else:
+            logger.error(f"Document not found in {collection_name}: {document_id}")
+            return None
+    
     async def close(self):
         """Close the database connection"""
         if self.client:
             self.client.close()
             logger.info("Closed MongoDB connection")
-            
+
+
+# Helper function to get database instance
+def get_database() -> Database:
+    """
+    Get singleton database instance
+    Returns Database object for dependency injection
+    """
+    return Database.get_instance()

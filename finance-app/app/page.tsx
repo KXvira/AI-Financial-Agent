@@ -1,27 +1,101 @@
 // app/page.tsx
+'use client';
+
 import StatCard from '../components/StatCard';
 import Link from 'next/link';
+import { useAuth, withAuth } from '../contexts/AuthContext';
+import { useDashboard, formatCurrency, formatPercentage } from '../hooks/useDashboard';
+import { SystemStatusWidget } from '../components/SystemStatusWidget';
+import BudgetWidget from '../components/BudgetWidget';
 
-const recentPayments = [
-  { reference: 'PAY-2023-005', client: 'Creative Designs Co.', amount: 'KES 60,000', date: '2023-09-15' },
-  { reference: 'PAY-2023-004', client: 'Tech Solutions Ltd.', amount: 'KES 75,000', date: '2023-09-10' },
-  { reference: 'PAY-2023-003', client: 'Digital Marketing Agency', amount: 'KES 85,000', date: '2023-09-06' },
-  { reference: 'PAY-2023-002', client: 'Global Imports Ltd.', amount: 'KES 100,000', date: '2023-08-26' },
-  { reference: 'PAY-2023-001', client: 'Tech Solutions Ltd.', amount: 'KES 50,000', date: '2023-08-16' }
-];
+function Dashboard() {
+  const { user } = useAuth();
+  const { data: dashboardData, loading, error, refetch } = useDashboard(30);
 
-export default function Home() {
   return (
     <div>
-      <h1 className="text-3xl font-bold mb-1">Dashboard</h1>
-      <p className="text-sm text-gray-500 mb-6">Overview of your business finances</p>
-
-      <div className=" grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <StatCard title="Total Invoices" amount="KES 120,000" change="10%" isPositive />
-        <StatCard title="Payments Received" amount="KES 95,000" change="15%" isPositive />
-        <StatCard title="Outstanding Balance" amount="KES 25,000" change="5%" isPositive={false} />
-        <StatCard title="Daily Cash Flow" amount="KES 1,500" change="2%" isPositive />
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h1 className="text-3xl font-bold mb-1">
+            Welcome back, {user?.full_name?.split(' ')[0] || 'User'}!
+          </h1>
+          <p className="text-sm text-gray-500">
+            Overview of {user?.business_name ? `${user.business_name}'s` : 'your'} finances
+          </p>
+        </div>
+        <div className="text-right">
+          <div className="text-sm text-gray-500">Role</div>
+          <div className="font-medium capitalize text-blue-600">{user?.role}</div>
+        </div>
       </div>
+
+      {/* Loading State */}
+      {loading && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="bg-white shadow-md rounded-lg p-6 animate-pulse">
+              <div className="h-4 bg-gray-200 rounded w-3/4 mb-4"></div>
+              <div className="h-8 bg-gray-200 rounded w-1/2 mb-2"></div>
+              <div className="h-3 bg-gray-200 rounded w-1/4"></div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Error State */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+          <p className="text-red-600 text-sm">⚠️ {error}</p>
+          <button
+            onClick={refetch}
+            className="mt-2 text-sm text-red-600 underline hover:text-red-700"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
+      {/* Stats Cards with Real Data */}
+      {!loading && dashboardData && (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <StatCard
+              title="Total Invoices"
+              amount={formatCurrency(dashboardData.statistics.total_invoices)}
+              change={formatPercentage(dashboardData.statistics.invoices_change_percent)}
+              isPositive={dashboardData.statistics.invoices_change_percent >= 0}
+            />
+            <StatCard
+              title="Payments Received"
+              amount={formatCurrency(dashboardData.statistics.payments_received)}
+              change={formatPercentage(dashboardData.statistics.payments_change_percent)}
+              isPositive={dashboardData.statistics.payments_change_percent >= 0}
+            />
+            <StatCard
+              title="Outstanding Balance"
+              amount={formatCurrency(dashboardData.statistics.outstanding_balance)}
+              change={formatPercentage(dashboardData.statistics.outstanding_change_percent)}
+              isPositive={dashboardData.statistics.outstanding_change_percent <= 0}
+            />
+            <StatCard
+              title="Daily Cash Flow"
+              amount={formatCurrency(dashboardData.statistics.daily_cash_flow)}
+              change={formatPercentage(dashboardData.statistics.cash_flow_change_percent)}
+              isPositive={dashboardData.statistics.cash_flow_change_percent >= 0}
+            />
+          </div>
+
+          {/* System Status Widget */}
+          <div className="mb-6">
+            <SystemStatusWidget />
+          </div>
+
+          {/* Budget Widget */}
+          <div className="mb-6">
+            <BudgetWidget />
+          </div>
+        </>
+      )}
 
       {/* AI Insights Widget */}
       <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-6 mb-6 border border-blue-200">
@@ -81,7 +155,21 @@ export default function Home() {
               </tr>
             </thead>
             <tbody>
-              {recentPayments.map((payment) => (
+              {loading && (
+                <tr>
+                  <td colSpan={4} className="px-4 py-8 text-center text-gray-500">
+                    Loading payments...
+                  </td>
+                </tr>
+              )}
+              {!loading && dashboardData && dashboardData.recent_payments.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="px-4 py-8 text-center text-gray-500">
+                    No recent payments found
+                  </td>
+                </tr>
+              )}
+              {!loading && dashboardData && dashboardData.recent_payments.map((payment) => (
                 <tr key={payment.reference} className="hover:bg-gray-50 transition">
                   <td className="px-4 py-2 font-medium text-blue-600">
                     <Link href={`/payments/${payment.reference}`} className="hover:underline">
@@ -89,8 +177,12 @@ export default function Home() {
                     </Link>
                   </td>
                   <td className="px-4 py-2">{payment.client}</td>
-                  <td className="px-4 py-2">{payment.amount}</td>
-                  <td className="px-4 py-2">{payment.date}</td>
+                  <td className="px-4 py-2">
+                    {formatCurrency(payment.amount, payment.currency)}
+                  </td>
+                  <td className="px-4 py-2">
+                    {new Date(payment.date).toLocaleDateString('en-KE')}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -100,5 +192,7 @@ export default function Home() {
     </div>
   );
 }
+
+export default withAuth(Dashboard);
 
 

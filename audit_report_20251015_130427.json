@@ -1,0 +1,24 @@
+{
+  "timestamp": "2025-10-15T13:04:27.185163",
+  "statistics": {
+    "total": 8,
+    "passed": 0,
+    "warnings": 7,
+    "failed": 1
+  },
+  "results": {
+    "failed": [
+      "POST /api/auth/login - Status: 401"
+    ],
+    "warnings": [
+      "Skipping - no auth token",
+      "Skipping - no auth token",
+      "Skipping - no auth token",
+      "Skipping - no auth token",
+      "Skipping - no auth token",
+      "Skipping - no auth token",
+      "Dashboard accessible without auth: 200"
+    ]
+  },
+  "score": 43.75
+}

@@ -2,8 +2,10 @@
 "use client";
 
 import { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, Loader2 } from 'lucide-react';
+import { Send, Bot, User, Loader2, TrendingUp, DollarSign, FileText, Users } from 'lucide-react';
 import { aiClient, AIResponse } from '../utils/aiApi';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface Message {
   id: string;
@@ -12,6 +14,97 @@ interface Message {
   timestamp: Date;
   confidence?: number;
   insights?: string[];
+}
+
+// Component to format AI responses with professional Markdown styling
+function FormattedAIResponse({ content }: { content: string }) {
+  return (
+    <div className="markdown-content text-sm leading-relaxed">
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+          // Style headers
+          h1: ({ node, ...props }) => (
+            <h1 className="text-xl font-bold text-gray-900 mb-3 mt-4 pb-2 border-b border-gray-200" {...props} />
+          ),
+          h2: ({ node, ...props }) => (
+            <h2 className="text-lg font-semibold text-gray-900 mb-2 mt-3 flex items-center gap-2" {...props} />
+          ),
+          h3: ({ node, ...props }) => (
+            <h3 className="text-base font-semibold text-gray-800 mb-2 mt-2" {...props} />
+          ),
+          
+          // Style paragraphs
+          p: ({ node, ...props }) => (
+            <p className="text-gray-700 mb-3" {...props} />
+          ),
+          
+          // Style lists
+          ul: ({ node, ...props }) => (
+            <ul className="space-y-2 mb-3 ml-4" {...props} />
+          ),
+          ol: ({ node, ...props }) => (
+            <ol className="space-y-2 mb-3 ml-4 list-decimal" {...props} />
+          ),
+          li: ({ node, ...props }) => (
+            <li className="text-gray-700 pl-2" {...props} />
+          ),
+          
+          // Style strong/bold text
+          strong: ({ node, ...props }) => (
+            <strong className="font-semibold text-gray-900" {...props} />
+          ),
+          
+          // Style emphasis/italic text
+          em: ({ node, ...props }) => (
+            <em className="italic text-gray-800" {...props} />
+          ),
+          
+          // Style code blocks
+          code: ({ node, inline, ...props }: any) => 
+            inline ? (
+              <code className="bg-gray-100 text-red-600 px-1.5 py-0.5 rounded text-xs font-mono" {...props} />
+            ) : (
+              <code className="block bg-gray-900 text-gray-100 p-3 rounded-lg text-xs font-mono overflow-x-auto mb-3" {...props} />
+            ),
+          
+          // Style tables
+          table: ({ node, ...props }) => (
+            <div className="overflow-x-auto mb-3">
+              <table className="min-w-full divide-y divide-gray-200 border border-gray-200 rounded-lg" {...props} />
+            </div>
+          ),
+          thead: ({ node, ...props }) => (
+            <thead className="bg-gray-50" {...props} />
+          ),
+          tbody: ({ node, ...props }) => (
+            <tbody className="bg-white divide-y divide-gray-200" {...props} />
+          ),
+          tr: ({ node, ...props }) => (
+            <tr className="hover:bg-gray-50" {...props} />
+          ),
+          th: ({ node, ...props }) => (
+            <th className="px-4 py-2 text-left text-xs font-semibold text-gray-900 uppercase tracking-wider" {...props} />
+          ),
+          td: ({ node, ...props }) => (
+            <td className="px-4 py-2 text-sm text-gray-700" {...props} />
+          ),
+          
+          // Style blockquotes
+          blockquote: ({ node, ...props }) => (
+            <blockquote className="border-l-4 border-blue-500 pl-4 py-2 italic text-gray-700 bg-blue-50 rounded-r mb-3" {...props} />
+          ),
+          
+          // Style links
+          a: ({ node, ...props }) => (
+            <a className="text-blue-600 hover:text-blue-800 underline" {...props} />
+          ),
+        }}
+      >
+        {content}
+      </ReactMarkdown>
+    </div>
+  );
 }
 
 export default function AIChat() {
@@ -40,16 +133,11 @@ export default function AIChat() {
         // Add welcome message
         setMessages([{
           id: Date.now().toString(),
-          content: "Hello! I'm your AI Financial Assistant. I can help you analyze your financial data, provide insights about your transactions, invoices, and cash flow. What would you like to know?",
+          content: "**Welcome to AI Financial Insights**\n\nHello! I'm your AI Financial Assistant powered by advanced analytics. I'm here to help you make data-driven decisions for your business.\n\n**I can assist you with:**\n* Analyzing transaction patterns and trends\n* Providing invoice status and payment insights\n* Generating comprehensive cash flow analysis\n* Offering strategic financial recommendations\n* Identifying opportunities for cost optimization\n\nWhat would you like to explore today?",
           sender: 'ai',
           timestamp: new Date(),
           confidence: 0.95,
-          insights: [
-            "Ask about your transaction patterns",
-            "Inquire about invoice status",
-            "Get cash flow analysis",
-            "Request financial recommendations"
-          ]
+          insights: []
         }]);
       } catch (error) {
         setConnectionStatus('error');
@@ -79,11 +167,11 @@ export default function AIChat() {
       
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
-        content: response.response,
+        content: response.answer,
         sender: 'ai',
         timestamp: new Date(),
-        confidence: response.confidence,
-        insights: response.insights,
+        confidence: response.confidence || 0.8,
+        insights: response.sources || [],
       };
 
       setMessages(prev => [...prev, aiMessage]);
@@ -163,30 +251,39 @@ export default function AIChat() {
             className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
           >
             <div
-              className={`max-w-[80%] rounded-lg p-3 ${
+              className={`max-w-[85%] rounded-lg p-4 shadow-sm ${
                 message.sender === 'user'
                   ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-800'
+                  : 'bg-white border border-gray-200 text-gray-800'
               }`}
             >
               {/* Message content */}
               <div className="flex items-start gap-2">
                 {message.sender === 'ai' && (
-                  <Bot className="h-4 w-4 mt-0.5 text-blue-600" />
+                  <Bot className="h-4 w-4 mt-0.5 text-blue-600 flex-shrink-0" />
                 )}
                 {message.sender === 'user' && (
-                  <User className="h-4 w-4 mt-0.5 text-white" />
+                  <User className="h-4 w-4 mt-0.5 text-white flex-shrink-0" />
                 )}
                 <div className="flex-1">
-                  <p className="text-sm leading-relaxed">{message.content}</p>
+                  {message.sender === 'ai' ? (
+                    <FormattedAIResponse content={message.content} />
+                  ) : (
+                    <p className="text-sm leading-relaxed">{message.content}</p>
+                  )}
                   
                   {/* Insights */}
                   {message.insights && message.insights.length > 0 && (
-                    <div className="mt-2 pt-2 border-t border-gray-200">
-                      <p className="text-xs text-gray-600 mb-1">💡 Insights:</p>
-                      <ul className="text-xs text-gray-600 space-y-1">
+                    <div className="mt-3 pt-3 border-t border-gray-200">
+                      <div className="flex items-center gap-1 mb-2">
+                        <span className="text-xs font-semibold text-blue-600">💡 Key Insights</span>
+                      </div>
+                      <ul className="text-xs text-gray-700 space-y-1.5">
                         {message.insights.map((insight, idx) => (
-                          <li key={idx}>• {insight}</li>
+                          <li key={idx} className="flex items-start gap-2">
+                            <span className="text-blue-500 mt-0.5">•</span>
+                            <span>{insight}</span>
+                          </li>
                         ))}
                       </ul>
                     </div>
@@ -200,9 +297,13 @@ export default function AIChat() {
                         minute: '2-digit'
                       })}
                     </span>
-                    {message.confidence && (
-                      <span>
-                        Confidence: {Math.round(message.confidence * 100)}%
+                    {message.confidence && message.confidence > 0 && (
+                      <span className="flex items-center gap-1">
+                        <span className={`inline-block w-2 h-2 rounded-full ${
+                          message.confidence > 0.8 ? 'bg-green-500' :
+                          message.confidence > 0.6 ? 'bg-yellow-500' : 'bg-red-500'
+                        }`}></span>
+                        {Math.round(message.confidence * 100)}%
                       </span>
                     )}
                   </div>
