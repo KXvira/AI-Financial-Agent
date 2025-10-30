@@ -121,7 +121,7 @@ export default function BudgetAnalytics() {
       tooltip: {
         callbacks: {
           label: function(context: any) {
-            return `${context.dataset.label}: $${context.parsed.y.toLocaleString()}`;
+            return `${context.dataset.label}: KSh ${context.parsed.y.toLocaleString()}`;
           }
         }
       }

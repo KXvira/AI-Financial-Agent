@@ -80,6 +80,12 @@ export default function Navbar() {
               >
                 Expenses
               </Link>
+              <Link 
+                href="/budgets"
+                className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
+              >
+                Budgets
+              </Link>
             </nav>
           )}
 
@@ -182,6 +188,18 @@ export default function Navbar() {
             </Link>
             <Link href="/customers" className="block px-3 py-2 text-base font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md">
               Customers
+            </Link>
+            <Link href="/receipts" className="block px-3 py-2 text-base font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md">
+              Receipts
+            </Link>
+            <Link href="/reports" className="block px-3 py-2 text-base font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md">
+              Reports
+            </Link>
+            <Link href="/expenses" className="block px-3 py-2 text-base font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md">
+              Expenses
+            </Link>
+            <Link href="/budgets" className="block px-3 py-2 text-base font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md">
+              Budgets
             </Link>
             <Link href="/ai-insights" className="block px-3 py-2 text-base font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md">
               AI Insights

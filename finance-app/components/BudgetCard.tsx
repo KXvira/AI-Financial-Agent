@@ -162,10 +162,10 @@ export default function BudgetCard({ budget, onDelete, onEdit }: BudgetCardProps
         <div className="mb-4">
           <div className="flex items-baseline justify-between mb-2">
             <span className="text-2xl font-bold text-gray-900">
-              ${budget.actual_spent.toLocaleString()}
+              KSh {budget.actual_spent.toLocaleString()}
             </span>
             <span className="text-sm text-gray-600">
-              of ${budget.amount.toLocaleString()}
+              of KSh {budget.amount.toLocaleString()}
             </span>
           </div>
           
@@ -182,7 +182,7 @@ export default function BudgetCard({ budget, onDelete, onEdit }: BudgetCardProps
               {utilization.toFixed(1)}% used
             </span>
             <span className={remaining >= 0 ? 'text-green-600' : 'text-red-600'}>
-              {remaining >= 0 ? `$${remaining.toLocaleString()} left` : `$${Math.abs(remaining).toLocaleString()} over`}
+              {remaining >= 0 ? `KSh ${remaining.toLocaleString()} left` : `KSh ${Math.abs(remaining).toLocaleString()} over`}
             </span>
           </div>
         </div>
